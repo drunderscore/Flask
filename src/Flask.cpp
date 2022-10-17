@@ -3,10 +3,10 @@
 #include "DataTableHelper.h"
 #include "Platform.h"
 #include "Tier0Logger.h"
-#include "tier1.h"
 #include <client_class.h>
 #include <icliententity.h>
 #include <spdlog/spdlog.h>
+#include <tier1.h>
 
 using namespace std::string_view_literals;
 
