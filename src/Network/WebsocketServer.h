@@ -21,7 +21,7 @@ public:
     virtual void on_client_connected(Badge<Client>, Client&) = 0;
 
 protected:
-    void did_observe_target_change(int index);
+    void did_observe_target_change(int index) { invoke_on_all_clients(&Client::did_observe_target_change, index); }
 
 private:
     static constexpr uint16_t s_websocket_port = 2222;
@@ -31,11 +31,11 @@ private:
     std::unique_ptr<boost::beast::net::ip::tcp::socket> m_awaiting_socket;
     std::vector<std::unique_ptr<Client>> m_clients;
 
-    template<typename Callback>
-    void for_each_client(Callback callback)
+    template<typename R, typename... Args1, typename... Args2>
+    void invoke_on_all_clients(R (Client::*mf)(Args1...), Args2&&... args)
     {
         for (auto& client : m_clients)
-            callback(client);
+            (*client.*mf)(std::forward<Args2>(args)...);
     }
 };
 }

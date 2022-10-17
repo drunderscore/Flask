@@ -34,9 +34,4 @@ void WebsocketServer::did_client_die(Badge<Client>, Client& client)
 {
     std::erase_if(m_clients, [&client](auto& client_predicate) { return client_predicate.get() == &client; });
 }
-
-void WebsocketServer::did_observe_target_change(int index)
-{
-    for_each_client([index](auto& client) { client->did_observe_target_change(index); });
-}
 }
