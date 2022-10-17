@@ -229,8 +229,7 @@ void Plugin::set_observe_target(int index)
 
 void Plugin::on_client_connected(Badge<Network::Client>, Network::Client& client)
 {
-    // FIXME: Include address?
-    spdlog::info("Client connected");
+    spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.remote_endpoint()));
 }
 
 void Plugin::FireGameEvent(IGameEvent* event)

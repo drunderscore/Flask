@@ -1,6 +1,7 @@
 #include "Client.h"
 #include "Constants.h"
 #include "WebsocketServer.h"
+#include <boost/lexical_cast.hpp>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
@@ -92,8 +93,7 @@ void Client::send(const nlohmann::json& message)
 
 void Client::misbehave(std::string_view reason)
 {
-    // FIXME: Include address of client?
-    spdlog::error("Client misbehaved: {}", reason);
+    spdlog::error("Client {} misbehaved: {}", boost::lexical_cast<std::string>(remote_endpoint()), reason);
 
     m_websocket.async_close(boost::beast::websocket::close_reason("Client misbehaved"),
                             [this](auto error) { m_server.did_client_die({}, *this); });
