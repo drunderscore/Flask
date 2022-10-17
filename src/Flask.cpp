@@ -3,7 +3,9 @@
 #include "DataTableHelper.h"
 #include "Platform.h"
 #include "Tier0Logger.h"
+#include <boost/lexical_cast.hpp>
 #include <client_class.h>
+#include <convar.h>
 #include <icliententity.h>
 #include <spdlog/spdlog.h>
 #include <tier1.h>
@@ -45,6 +47,8 @@ Signature Plugin::s_hltv_camera_set_primary_target_function(
 
 std::string_view Plugin::s_client_library_name = "tf/bin/client.dll";
 #endif
+
+ConCommand Plugin::s_flask_network_client_list("flask_network_client_list", flask_network_client_list);
 
 void Plugin::insert_client_class_and_receive_table_into_cache(ClientClass& client_class)
 {
@@ -176,6 +180,8 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 
     game_system_add_function(this);
 
+    ConVar_Register();
+
     accept();
 
     spdlog::info("Flask loaded");
@@ -192,6 +198,8 @@ void Plugin::Unload()
     if (m_game_system_remove_function)
         m_game_system_remove_function(this);
 
+    ConVar_Unregister();
+
     DisconnectTier1Libraries();
 }
 
@@ -199,6 +207,12 @@ void Plugin::Update(float)
 {
     if (auto maybe_poll_error = poll(); maybe_poll_error)
         spdlog::error("Got error whilst polling Boost::Asio: {}", maybe_poll_error.to_string());
+}
+
+void Plugin::flask_network_client_list(const CCommand& args)
+{
+    for (auto& client : Plugin::the().clients())
+        spdlog::info("{}", boost::lexical_cast<std::string>(client->remote_endpoint()));
 }
 
 ClientClass* Plugin::get_head_of_client_class_list()

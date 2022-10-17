@@ -12,6 +12,7 @@
 #include <igameevents.h>
 #include <iserverplugin.h>
 #include <ivdebugoverlay.h>
+#include <tier1/convar.h>
 #include <toolframework/ienginetool.h>
 
 class C_HLTVCamera;
@@ -107,6 +108,10 @@ private:
     static Signature s_call_to_hltv_camera_singleton_getter;
     static Signature s_hltv_camera_set_primary_target_function;
     static std::string_view s_client_library_name;
+
+    static ConCommand s_flask_network_client_list;
+
+    static void flask_network_client_list(const CCommand&);
 
     typedef void (*IGameSystemAddFn)(IGameSystem*);
     typedef void (*IGameSystemRemoveFn)(IGameSystem*);

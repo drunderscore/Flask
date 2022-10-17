@@ -23,6 +23,8 @@ public:
 protected:
     void did_observe_target_change(int index) { invoke_on_all_clients(&Client::did_observe_target_change, index); }
 
+    const std::vector<std::unique_ptr<Client>>& clients() const { return m_clients; }
+
 private:
     static constexpr uint16_t s_websocket_port = 2222;
 

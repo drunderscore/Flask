@@ -16,6 +16,8 @@ class Client
 public:
     Client(boost::beast::net::ip::tcp::socket&&, WebsocketServer&);
 
+    auto remote_endpoint() { return m_websocket.next_layer().socket().remote_endpoint(); }
+
     inline void send(Badge<WebsocketServer>, const nlohmann::json& message) { send(message); }
 
     void did_observe_target_change(int index);
