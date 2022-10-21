@@ -111,8 +111,10 @@ private:
     static std::string_view s_client_library_name;
 
     static ConCommand s_flask_network_client_list;
+    static ConCommand s_flask_send_user_interaction;
 
     static void flask_network_client_list(const CCommand&);
+    static void flask_send_user_interaction(const CCommand&);
 
     typedef void (*IGameSystemAddFn)(IGameSystem*);
     typedef void (*IGameSystemRemoveFn)(IGameSystem*);

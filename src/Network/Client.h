@@ -25,6 +25,7 @@ public:
     inline void send(Badge<WebsocketServer>, const nlohmann::json& message) { send(message); }
 
     void did_observe_target_change(int index);
+    void did_user_interact(std::string_view data);
 
     void sync_game_state(const GameState&);
 

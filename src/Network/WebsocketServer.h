@@ -22,6 +22,7 @@ public:
 
 protected:
     void did_observe_target_change(int index) { invoke_on_all_clients(&Client::did_observe_target_change, index); }
+    void did_user_interact(std::string_view data) { invoke_on_all_clients(&Client::did_user_interact, data); }
 
     const std::vector<std::unique_ptr<Client>>& clients() const { return m_clients; }
 

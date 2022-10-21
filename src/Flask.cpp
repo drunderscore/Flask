@@ -49,6 +49,7 @@ std::string_view Plugin::s_client_library_name = "tf/bin/client.dll";
 #endif
 
 ConCommand Plugin::s_flask_network_client_list("flask_network_client_list", flask_network_client_list);
+ConCommand Plugin::s_flask_send_user_interaction("flask_send_user_interaction", flask_send_user_interaction);
 
 void Plugin::insert_client_class_and_receive_table_into_cache(ClientClass& client_class)
 {
@@ -213,6 +214,12 @@ void Plugin::flask_network_client_list(const CCommand& args)
 {
     for (auto& client : Plugin::the().clients())
         spdlog::info("{}", boost::lexical_cast<std::string>(client->remote_endpoint()));
+}
+
+void Plugin::flask_send_user_interaction(const CCommand& args)
+{
+    if (args.ArgC() >= 2)
+        Plugin::the().did_user_interact(args.Arg(1));
 }
 
 ClientClass* Plugin::get_head_of_client_class_list()
