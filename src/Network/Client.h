@@ -7,7 +7,11 @@
 #include <string>
 #include <string_view>
 
-namespace Flask::Network
+namespace Flask
+{
+class GameState;
+
+namespace Network
 {
 class WebsocketServer;
 
@@ -21,6 +25,8 @@ public:
     inline void send(Badge<WebsocketServer>, const nlohmann::json& message) { send(message); }
 
     void did_observe_target_change(int index);
+
+    void sync_game_state(const GameState&);
 
 private:
     void read();
@@ -36,4 +42,5 @@ private:
     boost::beast::flat_buffer m_read_buffer;
     std::queue<std::string> m_pending_messages_to_send;
 };
+}
 }

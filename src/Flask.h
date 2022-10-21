@@ -3,6 +3,7 @@
 // Explicitly put this at the top -- needed for igamesystem.h
 #include <platform.h>
 
+#include "GameState.h"
 #include "Network/WebsocketServer.h"
 #include "Signature.h"
 #include <../game/shared/igamesystem.h>
@@ -142,6 +143,7 @@ private:
     IGameSystemRemoveFn m_game_system_remove_function{};
     C_HLTVCameraSingletonGetter m_hltv_camera_singleton_getter{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
+    GameState m_current_game_state;
 
     void insert_client_class_and_receive_table_into_cache(ClientClass&);
     void insert_receive_table_and_base_into_cache(RecvTable&);
