@@ -1,4 +1,5 @@
 #include "../Platform.h"
+#include <cstring>
 #include <link.h>
 #include <sys/mman.h>
 #include <sys/stat.h>

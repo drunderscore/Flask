@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cinttypes>
-#include <fmt/format.h>
 #include <span>
 #include <stdexcept>
 
