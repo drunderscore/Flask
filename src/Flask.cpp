@@ -157,7 +157,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
     auto address_of_call_to_hltv_camera_singleton_getter_integer =
         reinterpret_cast<uintptr_t>(address_of_call_to_hltv_camera_singleton_getter);
 
-    m_hltv_camera_singleton_getter = reinterpret_cast<C_HLTVCameraSingletonGetter>(
+    m_hltv_camera_singleton_getter = reinterpret_cast<C_HLTVCameraSingletonGetterFn>(
         *reinterpret_cast<uintptr_t*>(address_of_call_to_hltv_camera_singleton_getter_integer + 1) +
         address_of_call_to_hltv_camera_singleton_getter_integer + 5);
 
@@ -226,7 +226,7 @@ ClientClass* Plugin::get_head_of_client_class_list()
 {
     // It is not uncommon for Valve to modify an existing interface, often then increasing the interface version.
     // Unfortunately, when changing this interface, they added some virtuals in-between existing ones...
-    return (*reinterpret_cast<IBaseClientDLL017GetClientClasses**>(&base_client_dll()))[8](&base_client_dll());
+    return (*reinterpret_cast<IBaseClientDLL017GetClientClassesFn**>(&base_client_dll()))[8](&base_client_dll());
 }
 
 void Plugin::set_observe_target(int index)

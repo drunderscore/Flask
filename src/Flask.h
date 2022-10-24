@@ -118,19 +118,19 @@ private:
 
     typedef void (*IGameSystemAddFn)(IGameSystem*);
     typedef void (*IGameSystemRemoveFn)(IGameSystem*);
-    typedef C_HLTVCamera* (*C_HLTVCameraSingletonGetter)();
+    typedef C_HLTVCamera* (*C_HLTVCameraSingletonGetterFn)();
 
     // NOTE: Not only does MSVC not support the attribute calling-convention notation, but MSVC also does not implement
     // calls to member functions to be similar to cdecl -- MSVC puts the this pointer into ECX.
 #ifdef POSIX
     typedef __attribute__((cdecl)) void (*C_HLTVCameraSetPrimaryTargetFn)(C_HLTVCamera*, int);
-    typedef __attribute__((cdecl)) ClientClass* (*IBaseClientDLL017GetClientClasses)(IBaseClientDLL*);
+    typedef __attribute__((cdecl)) ClientClass* (*IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
 #elif _WIN32
     // FIXME: clang-format formats this weirdly, but I'm not sure if I'm even putting it in a favorable order... but I
     //        also don't think I should expect clang-format to be able to format MSVC-specific declarations... perhaps
     //        we should clang-format off this entire part.
     typedef void(__thiscall* C_HLTVCameraSetPrimaryTargetFn)(C_HLTVCamera*, int);
-    typedef ClientClass*(__thiscall* IBaseClientDLL017GetClientClasses)(IBaseClientDLL*);
+    typedef ClientClass*(__thiscall* IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
 #endif
 
     IVEngineClient* m_engine_client{};
@@ -143,7 +143,7 @@ private:
     std::map<std::string, ClientClass*, std::less<>> m_cached_client_classes_by_name;
     std::map<std::string, RecvTable*, std::less<>> m_cached_receive_tables_by_name;
     IGameSystemRemoveFn m_game_system_remove_function{};
-    C_HLTVCameraSingletonGetter m_hltv_camera_singleton_getter{};
+    C_HLTVCameraSingletonGetterFn m_hltv_camera_singleton_getter{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
     GameState m_current_game_state;
 
