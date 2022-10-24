@@ -8,9 +8,11 @@ set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
 set(CMAKE_CXX_STANDARD 20)
 
 # Source Engine is 32-bit, so force Lagom to build 32-bit too
-if (NOT WIN32)
+if (UNIX)
     add_compile_options(-m32)
     add_link_options(-m32)
+elseif (WIN32)
+    add_compile_options(/MT)
 endif ()
 
 add_subdirectory(spdlog)
