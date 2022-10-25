@@ -49,7 +49,7 @@ void Client::read()
             {
                 json_message = nlohmann::json::parse(message);
             }
-            catch (const nlohmann::json::exception& ex)
+            catch (const std::exception& ex)
             {
                 misbehave(ex.what());
                 return;
