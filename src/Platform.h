@@ -3,6 +3,7 @@
 #include <cinttypes>
 #include <span>
 #include <stdexcept>
+#include <string>
 
 namespace Flask::Platform
 {
