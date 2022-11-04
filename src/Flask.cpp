@@ -70,6 +70,14 @@ void Plugin::insert_receive_table_and_base_into_cache(RecvTable& receive_table)
 
     m_cached_receive_tables_by_name.insert({receive_table.m_pNetTableName, &receive_table});
 
+    // Data tables can have properties that are data tables, so let's also recursively cache those.
+    for (auto i = 0; i < receive_table.GetNumProps(); i++)
+    {
+        auto property = receive_table.GetProp(i);
+        if (property->GetType() == DPT_DataTable)
+            insert_receive_table_and_base_into_cache(*property->GetDataTable());
+    }
+
     if (auto base_table = DataTableHelper::get_property_from_table_by_name(
             receive_table, DataTableHelper::s_base_class_table_property_name))
         insert_receive_table_and_base_into_cache(*base_table->GetDataTable());
