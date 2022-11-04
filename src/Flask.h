@@ -156,8 +156,8 @@ private:
     IBaseClientDLL* m_base_client_dll{};
     IGameEventManager2* m_game_event_manager{};
     IClientEntityList* m_client_entity_list{};
-    std::map<std::string, ClientClass*, std::less<>> m_cached_client_classes_by_name;
-    std::map<std::string, RecvTable*, std::less<>> m_cached_receive_tables_by_name;
+    std::map<std::string_view, ClientClass*, std::less<>> m_cached_client_classes_by_name;
+    std::map<std::string_view, RecvTable*, std::less<>> m_cached_receive_tables_by_name;
     IGameSystemRemoveFn m_game_system_remove_function{};
     C_HLTVCameraSingletonGetterFn m_hltv_camera_singleton_getter{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};

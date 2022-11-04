@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <optional>
 
 namespace Flask
 {
@@ -16,9 +17,9 @@ public:
         return has_changed;
     }
 
-    int observe_target() const { return m_observe_target; }
+    std::optional<int> observe_target() const { return m_observe_target; }
 
 private:
-    int m_observe_target{};
+    std::optional<int> m_observe_target{};
 };
 }
