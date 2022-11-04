@@ -118,6 +118,7 @@ private:
 
     static ConCommand s_flask_network_client_list;
     static ConCommand s_flask_send_user_interaction;
+    static ConVar s_flask_render_hide_respawn_room_visualizers;
 
     static void flask_network_client_list(const CCommand&);
     static void flask_send_user_interaction(const CCommand&);
@@ -133,6 +134,7 @@ private:
     typedef __attribute__((cdecl)) ClientClass* (*IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
 
     static __attribute__((cdecl)) void on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
+    static __attribute__((cdecl)) int respawn_room_visualizer_draw_model(C_BaseEntity*, int);
 #elif _WIN32
     // FIXME: clang-format formats this weirdly, but I'm not sure if I'm even putting it in a favorable order... but I
     //        also don't think I should expect clang-format to be able to format MSVC-specific declarations... perhaps
@@ -141,9 +143,11 @@ private:
     typedef ClientClass*(__thiscall* IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
 
     static void __thiscall on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
+    static int __thiscall respawn_room_visualizer_draw_model(C_BaseEntity*, int);
 #endif
 
     using CClientEntityListOnAddEntityFn = decltype(on_add_entity)*;
+    using C_FuncRespawnRoomVisualizerDrawModelFn = decltype(respawn_room_visualizer_draw_model)*;
 
     IVEngineClient* m_engine_client{};
     IVDebugOverlay* m_debug_overlay{};
@@ -159,6 +163,8 @@ private:
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
     GameState m_current_game_state;
     CClientEntityListOnAddEntityFn m_client_entity_list_on_add_entity_function{};
+    C_FuncRespawnRoomVisualizerDrawModelFn* m_respawn_room_visualizer_draw_model_function_vtable_entry{};
+    C_FuncRespawnRoomVisualizerDrawModelFn m_respawn_room_visualizer_draw_model_function{};
 
     void insert_client_class_and_receive_table_into_cache(ClientClass&);
     void insert_receive_table_and_base_into_cache(RecvTable&);

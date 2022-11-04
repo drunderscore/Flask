@@ -50,6 +50,9 @@ std::string_view Plugin::s_client_library_name = "tf/bin/client.dll";
 
 ConCommand Plugin::s_flask_network_client_list("flask_network_client_list", flask_network_client_list);
 ConCommand Plugin::s_flask_send_user_interaction("flask_send_user_interaction", flask_send_user_interaction);
+ConVar Plugin::s_flask_render_hide_respawn_room_visualizers("flask_render_hide_respawn_room_visualizers", "1",
+                                                            FCVAR_NONE,
+                                                            "Should the respawn room visualizers be hidden");
 
 void Plugin::insert_client_class_and_receive_table_into_cache(ClientClass& client_class)
 {
@@ -74,7 +77,32 @@ void Plugin::insert_receive_table_and_base_into_cache(RecvTable& receive_table)
 
 void Plugin::on_add_entity(CClientEntityList* self, IHandleEntity* entity, CBaseHandle handle)
 {
+    if (auto client_entity = Plugin::the().client_entity_list().GetClientEntityFromHandle(handle))
+    {
+        if (client_entity->GetClientClass()->m_pNetworkName == "CFuncRespawnRoomVisualizer"sv)
+        {
+            if (!Plugin::the().m_respawn_room_visualizer_draw_model_function)
+            {
+                auto draw_model_vtable_entry =
+                    Plugin::the().m_respawn_room_visualizer_draw_model_function_vtable_entry =
+                        &(*reinterpret_cast<C_FuncRespawnRoomVisualizerDrawModelFn**>(
+                            client_entity->GetClientRenderable()))[10];
+
+                Plugin::the().m_respawn_room_visualizer_draw_model_function = *draw_model_vtable_entry;
+                *draw_model_vtable_entry = respawn_room_visualizer_draw_model;
+            }
+        }
+    }
+
     Plugin::the().m_client_entity_list_on_add_entity_function(self, entity, handle);
+}
+
+int Plugin::respawn_room_visualizer_draw_model(C_BaseEntity* self, int flags)
+{
+    if (s_flask_render_hide_respawn_room_visualizers.GetBool())
+        return 1;
+
+    return Plugin::the().m_respawn_room_visualizer_draw_model_function(self, flags);
 }
 
 template<typename T>
@@ -213,6 +241,9 @@ void Plugin::Unload()
 
     if (m_client_entity_list_on_add_entity_function)
         *client_entity_list_on_add_entity_vtable_entry() = m_client_entity_list_on_add_entity_function;
+
+    if (m_respawn_room_visualizer_draw_model_function)
+        *m_respawn_room_visualizer_draw_model_function_vtable_entry = m_respawn_room_visualizer_draw_model_function;
 
     ConVar_Unregister();
 
