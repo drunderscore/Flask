@@ -17,6 +17,7 @@
 #include <toolframework/ienginetool.h>
 
 class C_HLTVCamera;
+class CClientEntityList;
 
 namespace Flask
 {
@@ -104,6 +105,11 @@ public:
     void FireGameEvent(IGameEvent* event) override;
 
 private:
+    // CClientEntityList::OnAddEntity is in a vtable, however multi-inheritance makes it difficult to get at that vtable
+    // because it if offset by the members of another superclass. This is the offset of that VTable from an
+    // IClientEntityList.
+    static constexpr uintptr_t s_client_entity_list_vtable_offset = 65556;
+
     static Signature s_game_system_add_function;
     static Signature s_game_system_remove_function;
     static Signature s_call_to_hltv_camera_singleton_getter;
@@ -125,13 +131,19 @@ private:
 #ifdef POSIX
     typedef __attribute__((cdecl)) void (*C_HLTVCameraSetPrimaryTargetFn)(C_HLTVCamera*, int);
     typedef __attribute__((cdecl)) ClientClass* (*IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
+
+    static __attribute__((cdecl)) void on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
 #elif _WIN32
     // FIXME: clang-format formats this weirdly, but I'm not sure if I'm even putting it in a favorable order... but I
     //        also don't think I should expect clang-format to be able to format MSVC-specific declarations... perhaps
     //        we should clang-format off this entire part.
     typedef void(__thiscall* C_HLTVCameraSetPrimaryTargetFn)(C_HLTVCamera*, int);
     typedef ClientClass*(__thiscall* IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
+
+    static void __thiscall on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
 #endif
+
+    using CClientEntityListOnAddEntityFn = decltype(on_add_entity)*;
 
     IVEngineClient* m_engine_client{};
     IVDebugOverlay* m_debug_overlay{};
@@ -146,8 +158,15 @@ private:
     C_HLTVCameraSingletonGetterFn m_hltv_camera_singleton_getter{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
     GameState m_current_game_state;
+    CClientEntityListOnAddEntityFn m_client_entity_list_on_add_entity_function{};
 
     void insert_client_class_and_receive_table_into_cache(ClientClass&);
     void insert_receive_table_and_base_into_cache(RecvTable&);
+
+    inline CClientEntityListOnAddEntityFn* client_entity_list_on_add_entity_vtable_entry()
+    {
+        return &(*reinterpret_cast<CClientEntityListOnAddEntityFn**>(&client_entity_list() -
+                                                                     (s_client_entity_list_vtable_offset / 4)))[0];
+    }
 };
 }

@@ -72,6 +72,11 @@ void Plugin::insert_receive_table_and_base_into_cache(RecvTable& receive_table)
         insert_receive_table_and_base_into_cache(*base_table->GetDataTable());
 }
 
+void Plugin::on_add_entity(CClientEntityList* self, IHandleEntity* entity, CBaseHandle handle)
+{
+    Plugin::the().m_client_entity_list_on_add_entity_function(self, entity, handle);
+}
+
 template<typename T>
 bool try_load_interface(T*& destination, const char* interface_version, CreateInterfaceFn create_interface_function)
 {
@@ -168,6 +173,13 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         return false;
     }
 
+    Platform::modify_memory_protection(Platform::get_bytes_for_library_name(s_client_library_name.data()),
+                                       {.read = true, .write = true, .execute = true});
+
+    auto client_entity_list_on_add_entity_function_vtable_entry = client_entity_list_on_add_entity_vtable_entry();
+    m_client_entity_list_on_add_entity_function = *client_entity_list_on_add_entity_function_vtable_entry;
+    *client_entity_list_on_add_entity_function_vtable_entry = on_add_entity;
+
     auto next_client_class = get_head_of_client_class_list();
     do
     {
@@ -198,6 +210,9 @@ void Plugin::Unload()
 
     if (m_game_system_remove_function)
         m_game_system_remove_function(this);
+
+    if (m_client_entity_list_on_add_entity_function)
+        *client_entity_list_on_add_entity_vtable_entry() = m_client_entity_list_on_add_entity_function;
 
     ConVar_Unregister();
 
