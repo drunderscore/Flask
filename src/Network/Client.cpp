@@ -39,6 +39,7 @@ void Client::read()
         else if (error)
         {
             spdlog::error("Got error whilst reading from websocket client: {}", error.to_string());
+            m_server.did_client_die({}, *this);
         }
         else
         {
@@ -74,6 +75,7 @@ void Client::pump_pending_messages()
             else if (error)
             {
                 spdlog::error("Got error whilst writing to websocket client: {}", error.to_string());
+                m_server.did_client_die({}, *this);
             }
 
             m_pending_messages_to_send.pop();
