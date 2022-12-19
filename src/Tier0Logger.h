@@ -1,7 +1,10 @@
 #pragma once
 
-#include <spdlog/sinks/base_sink.h>
+#include <Color.h>
 #include <tier0/dbg.h>
+
+#undef clamp
+#include <spdlog/sinks/base_sink.h>
 
 namespace Flask
 {

@@ -23,6 +23,14 @@ add_library(Flask SHARED
         src/Network/Client.cpp
         src/Network/WebsocketServer.cpp
         src/Signature.cpp
+
+        src/Modules/Camera.cpp
+        src/Modules/EntityListener.cpp
+        src/Modules/GameSystem.cpp
+        src/Modules/HideRespawnRoomVisualizers.cpp
+        src/Modules/Interfaces.cpp
+        src/Modules/NetworkCache.cpp
+        src/Modules/Server.cpp
         )
 
 target_compile_definitions(Flask PRIVATE

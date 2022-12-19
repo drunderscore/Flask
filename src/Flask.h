@@ -1,34 +1,19 @@
 #pragma once
 
-// Explicitly put this at the top -- needed for igamesystem.h
-#include <platform.h>
-
-#include "GameState.h"
-#include "Network/WebsocketServer.h"
-#include "Signature.h"
-#include <../game/shared/igamesystem.h>
-#include <cdll_int.h>
-#include <client_class.h>
-#include <icliententitylist.h>
-#include <igameevents.h>
+#include "Modules/Forward.h"
+#include "Tier0Logger.h"
 #include <iserverplugin.h>
-#include <ivdebugoverlay.h>
-#include <tier1/convar.h>
-#include <toolframework/ienginetool.h>
+#include <memory>
+#include <string_view>
 
 class C_HLTVCamera;
 class CClientEntityList;
 
 namespace Flask
 {
-class Plugin : public IServerPluginCallbacks,
-               public IGameSystemPerFrame,
-               public Network::WebsocketServer,
-               public IGameEventListener2
+class Plugin : public IServerPluginCallbacks
 {
 public:
-    ~Plugin() override = default;
-
     bool Load(CreateInterfaceFn, CreateInterfaceFn) override;
     void Unload() override;
     void Pause() override {}
@@ -53,126 +38,30 @@ public:
     {
     }
 
-    char const* Name() override { return GetPluginDescription(); }
-    bool Init() override { return true; }
-
-    void PostInit() override {}
-    void Shutdown() override {}
-    void LevelInitPreEntity() override {}
-    void LevelInitPostEntity() override {}
-    void LevelShutdownPreEntity() override {}
-    void LevelShutdownPostEntity() override {}
-    void OnSave() override {}
-    void OnRestore() override {}
-    void SafeRemoveIfDesired() override {}
-    bool IsPerFrame() override { return true; }
-    void PreRender() override {}
-    void Update(float frametime) override;
-    void PostRender() override {}
-
-    IVEngineClient& engine_client() { return *m_engine_client; }
-    IVDebugOverlay& debug_overlay() { return *m_debug_overlay; }
-    IEngineTool& engine_tool() { return *m_engine_tool; }
-    IBaseClientDLL& base_client_dll() { return *m_base_client_dll; }
-    IGameEventManager2& game_event_manager() { return *m_game_event_manager; }
-    IClientEntityList& client_entity_list() { return *m_client_entity_list; }
-
-    ClientClass* get_head_of_client_class_list();
-
-    ClientClass* find_client_class_by_name(std::string_view name)
-    {
-        if (auto it = m_cached_client_classes_by_name.find(name); it != m_cached_client_classes_by_name.end())
-            return it->second;
-
-        return nullptr;
-    }
-
-    RecvTable* find_receive_table_by_name(std::string_view name)
-    {
-        if (auto it = m_cached_receive_tables_by_name.find(name); it != m_cached_receive_tables_by_name.end())
-            return it->second;
-
-        return nullptr;
-    }
-
     static Plugin s_the;
     static Plugin& the() { return s_the; }
 
-    void set_observe_target(int index) override;
-
-    void on_client_connected(Badge<Network::Client>, Network::Client&) override;
-
-    void FireGameEvent(IGameEvent* event) override;
-
-private:
-    // CClientEntityList::OnAddEntity is in a vtable, however multi-inheritance makes it difficult to get at that vtable
-    // because it if offset by the members of another superclass. This is the offset of that VTable from an
-    // IClientEntityList.
-    static constexpr uintptr_t s_client_entity_list_vtable_offset = 65556;
-
-    static Signature s_game_system_add_function;
-    static Signature s_game_system_remove_function;
-    static Signature s_call_to_hltv_camera_singleton_getter;
-    static Signature s_hltv_camera_set_primary_target_function;
     static std::string_view s_client_library_name;
 
-    static ConCommand s_flask_network_client_list;
-    static ConCommand s_flask_send_user_interaction;
-    static ConVar s_flask_render_hide_respawn_room_visualizers;
+    // These _should_ return const references, but the Source interfaces don't have a ton of const correctness, so it
+    // only results in many const_casts... so do without it.
+    Modules::Interfaces& interfaces() { return *m_interfaces; }
+    Modules::NetworkCache& network_cache() { return *m_network_cache; }
+    Modules::EntityListener& entity_listener() { return *m_entity_listener; }
+    Modules::HideRespawnRoomVisualizers& hide_respawn_room_visualizers() { return *m_hide_respawn_room_visualizer; }
+    Modules::GameSystem& game_system() { return *m_game_system; }
+    Modules::Camera& camera() { return *m_camera; }
+    Modules::Server& server() { return *m_server; }
 
-    static void flask_network_client_list(const CCommand&);
-    static void flask_send_user_interaction(const CCommand&);
+private:
+    std::unique_ptr<Modules::Interfaces> m_interfaces;
+    std::unique_ptr<Modules::NetworkCache> m_network_cache;
+    std::unique_ptr<Modules::EntityListener> m_entity_listener;
+    std::unique_ptr<Modules::HideRespawnRoomVisualizers> m_hide_respawn_room_visualizer;
+    std::unique_ptr<Modules::GameSystem> m_game_system;
+    std::unique_ptr<Modules::Camera> m_camera;
+    std::unique_ptr<Modules::Server> m_server;
 
-    typedef void (*IGameSystemAddFn)(IGameSystem*);
-    typedef void (*IGameSystemRemoveFn)(IGameSystem*);
-    typedef C_HLTVCamera* (*C_HLTVCameraSingletonGetterFn)();
-
-    // NOTE: Not only does MSVC not support the attribute calling-convention notation, but MSVC also does not implement
-    // calls to member functions to be similar to cdecl -- MSVC puts the this pointer into ECX.
-#ifdef POSIX
-    typedef __attribute__((cdecl)) void (*C_HLTVCameraSetPrimaryTargetFn)(C_HLTVCamera*, int);
-    typedef __attribute__((cdecl)) ClientClass* (*IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
-
-    static __attribute__((cdecl)) void on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
-    static __attribute__((cdecl)) int respawn_room_visualizer_draw_model(C_BaseEntity*, int);
-#elif _WIN32
-    // FIXME: clang-format formats this weirdly, but I'm not sure if I'm even putting it in a favorable order... but I
-    //        also don't think I should expect clang-format to be able to format MSVC-specific declarations... perhaps
-    //        we should clang-format off this entire part.
-    typedef void(__thiscall* C_HLTVCameraSetPrimaryTargetFn)(C_HLTVCamera*, int);
-    typedef ClientClass*(__thiscall* IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
-
-    static void __thiscall on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
-    static int __thiscall respawn_room_visualizer_draw_model(C_BaseEntity*, int);
-#endif
-
-    using CClientEntityListOnAddEntityFn = decltype(on_add_entity)*;
-    using C_FuncRespawnRoomVisualizerDrawModelFn = decltype(respawn_room_visualizer_draw_model)*;
-
-    IVEngineClient* m_engine_client{};
-    IVDebugOverlay* m_debug_overlay{};
-    IEngineTool* m_engine_tool{};
-    CreateInterfaceFn m_client_interface_factory_function{};
-    IBaseClientDLL* m_base_client_dll{};
-    IGameEventManager2* m_game_event_manager{};
-    IClientEntityList* m_client_entity_list{};
-    std::map<std::string_view, ClientClass*, std::less<>> m_cached_client_classes_by_name;
-    std::map<std::string_view, RecvTable*, std::less<>> m_cached_receive_tables_by_name;
-    IGameSystemRemoveFn m_game_system_remove_function{};
-    C_HLTVCameraSingletonGetterFn m_hltv_camera_singleton_getter{};
-    C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
-    GameState m_current_game_state;
-    CClientEntityListOnAddEntityFn m_client_entity_list_on_add_entity_function{};
-    C_FuncRespawnRoomVisualizerDrawModelFn* m_respawn_room_visualizer_draw_model_function_vtable_entry{};
-    C_FuncRespawnRoomVisualizerDrawModelFn m_respawn_room_visualizer_draw_model_function{};
-
-    void insert_client_class_and_receive_table_into_cache(ClientClass&);
-    void insert_receive_table_and_base_into_cache(RecvTable&);
-
-    inline CClientEntityListOnAddEntityFn* client_entity_list_on_add_entity_vtable_entry()
-    {
-        return &(*reinterpret_cast<CClientEntityListOnAddEntityFn**>(&client_entity_list() -
-                                                                     (s_client_entity_list_vtable_offset / 4)))[0];
-    }
+    std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
 };
 }

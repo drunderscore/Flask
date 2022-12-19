@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Badge.h"
+#undef clamp
 #include <boost/beast.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <queue>
