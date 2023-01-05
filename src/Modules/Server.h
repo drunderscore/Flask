@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../Forward.h"
-#include "../GameState.h"
 #include "../ManagedConCommand.h"
 #include "../Network/WebsocketServer.h"
 #include "Forward.h"
@@ -15,11 +14,11 @@ public:
     explicit Server(Plugin&);
     ~Server() override;
 
-    virtual void set_observe_target(int index) override;
+    void set_observe_target(int index) override;
 
-    virtual void on_client_connected(Badge<Network::Client>, Network::Client&) override;
+    void on_client_connected(Badge<Network::Client>, Network::Client&) override;
 
-    virtual void FireGameEvent(IGameEvent*) override;
+    void FireGameEvent(IGameEvent*) override;
 
     void update(Badge<GameSystem>);
 

@@ -1,5 +1,6 @@
 #include "Server.h"
 #include "../Flask.h"
+#include "../Structures/C_HLTVCamera.h"
 #include "Camera.h"
 #include "Interfaces.h"
 #include <boost/lexical_cast.hpp>
@@ -24,17 +25,13 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
 {
     spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.remote_endpoint()));
 
-    client.sync_game_state(m_current_game_state);
+    client.did_observe_target_change(m_plugin.camera().camera().target_1);
 }
 
 void Server::FireGameEvent(IGameEvent* event)
 {
     if (event->GetName() == "hltv_changed_target"sv)
-    {
-        auto index = event->GetInt("obs_target");
-        if (m_current_game_state.update_observe_target(index))
-            did_observe_target_change(event->GetInt("obs_target"));
-    }
+        did_observe_target_change(event->GetInt("obs_target"));
 }
 
 void Server::update(Badge<GameSystem>)

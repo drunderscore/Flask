@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Badge.h"
+#include "Forward.h"
 #undef clamp
 #include <boost/beast.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -8,14 +9,8 @@
 #include <string>
 #include <string_view>
 
-namespace Flask
+namespace Flask::Network
 {
-class GameState;
-
-namespace Network
-{
-class WebsocketServer;
-
 class Client
 {
 public:
@@ -27,8 +22,6 @@ public:
 
     void did_observe_target_change(int index);
     void did_user_interact(std::string_view data);
-
-    void sync_game_state(const GameState&);
 
 private:
     void read();
@@ -44,5 +37,4 @@ private:
     boost::beast::flat_buffer m_read_buffer;
     std::queue<std::string> m_pending_messages_to_send;
 };
-}
 }

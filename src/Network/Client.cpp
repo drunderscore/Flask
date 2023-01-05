@@ -1,5 +1,4 @@
 #include "Client.h"
-#include "../GameState.h"
 #include "Constants.h"
 #include "WebsocketServer.h"
 #include <boost/lexical_cast.hpp>
@@ -140,10 +139,4 @@ void Client::on_message(nlohmann::json message)
 
 void Client::did_observe_target_change(int index) { send({{"event", Events::observe_target}, {"index", index}}); }
 void Client::did_user_interact(std::string_view data) { send({{"event", Events::user_interaction}, {"data", data}}); }
-
-void Client::sync_game_state(const GameState& game_state)
-{
-    if (game_state.observe_target())
-        did_observe_target_change(*game_state.observe_target());
-}
 }
