@@ -11,7 +11,8 @@
 // Events are sent from the server to client(s), in response to some stateful change.
 #define ENUMERATE_FLASK_EVENTS(M)                                                                                      \
     M(observe_target)                                                                                                  \
-    M(user_interaction)
+    M(user_interaction)                                                                                                \
+    M(player_death)
 
 namespace Flask::Network
 {

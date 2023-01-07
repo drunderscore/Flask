@@ -22,6 +22,10 @@ public:
 protected:
     void did_observe_target_change(int index) { invoke_on_all_clients(&Client::did_observe_target_change, index); }
     void did_user_interact(std::string_view data) { invoke_on_all_clients(&Client::did_user_interact, data); }
+    void did_player_death(const Client::DeathEvent& death_event)
+    {
+        invoke_on_all_clients(&Client::did_player_death, death_event);
+    }
 
     const std::vector<std::unique_ptr<Client>>& clients() const { return m_clients; }
 
