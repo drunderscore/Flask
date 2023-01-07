@@ -4,6 +4,7 @@
 #include <tier0/dbg.h>
 
 #undef clamp
+#include <mutex>
 #include <spdlog/sinks/base_sink.h>
 
 namespace Flask
