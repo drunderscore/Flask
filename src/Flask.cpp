@@ -85,7 +85,9 @@ void Plugin::Unload()
     ConVar_Unregister();
     DisconnectTier1Libraries();
 
-    std::erase_if(spdlog::default_logger()->sinks(), [this](auto sink) { return sink == m_tier0_sink; });
+    std::erase(spdlog::default_logger()->sinks(), m_tier0_sink);
+
+    spdlog::info("Flask unloaded");
 }
 
 void Plugin::update(Badge<Modules::GameSystem>)
