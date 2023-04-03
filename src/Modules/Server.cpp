@@ -10,7 +10,7 @@ using namespace std::string_view_literals;
 
 namespace Flask::Modules
 {
-Server::Server(Plugin& plugin) : m_plugin(plugin)
+Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), m_plugin(plugin)
 {
     plugin.interfaces().game_event_manager().AddListener(this, "hltv_changed_target", false);
 
@@ -32,12 +32,6 @@ void Server::FireGameEvent(IGameEvent* event)
 {
     if (event->GetName() == "hltv_changed_target"sv)
         did_observe_target_change(event->GetInt("obs_target"));
-}
-
-void Server::update(Badge<GameSystem>)
-{
-    if (auto maybe_poll_error = poll(); maybe_poll_error)
-        spdlog::error("Got error whilst polling Boost::Asio: {}", maybe_poll_error.to_string());
 }
 
 void Server::flask_network_client_list(const CCommand&)

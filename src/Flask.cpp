@@ -45,6 +45,8 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 
     try
     {
+        m_io_context = std::make_unique<boost::asio::io_context>();
+
         m_interfaces = std::make_unique<Modules::Interfaces>(interface_factory, game_server_factory);
         m_network_cache = std::make_unique<Modules::NetworkCache>(*this);
         m_entity_listener = std::make_unique<Modules::EntityListener>(*this);
@@ -78,10 +80,20 @@ void Plugin::Unload()
     m_entity_listener.reset();
     m_network_cache.reset();
     m_interfaces.reset();
+    m_io_context.reset();
 
     ConVar_Unregister();
     DisconnectTier1Libraries();
 
     std::erase_if(spdlog::default_logger()->sinks(), [this](auto sink) { return sink == m_tier0_sink; });
 }
+
+void Plugin::update(Badge<Modules::GameSystem>)
+{
+    boost::system::error_code error_code;
+
+    if (m_io_context->poll(error_code); error_code)
+        spdlog::error("Got error whilst polling Boost::Asio: {}", error_code.to_string());
+}
+
 }

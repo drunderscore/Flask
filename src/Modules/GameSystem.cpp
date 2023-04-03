@@ -39,5 +39,5 @@ GameSystem::~GameSystem() { m_game_system_remove_function(this); }
 
 char const* GameSystem::Name() { return m_plugin.GetPluginDescription(); }
 
-void GameSystem::Update(float) { m_plugin.server().update({}); }
+void GameSystem::Update(float) { m_plugin.update({}); }
 }

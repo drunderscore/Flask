@@ -20,8 +20,6 @@ public:
 
     void FireGameEvent(IGameEvent*) override;
 
-    void update(Badge<GameSystem>);
-
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};

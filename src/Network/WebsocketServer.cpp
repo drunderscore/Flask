@@ -6,7 +6,10 @@ using namespace std::string_view_literals;
 
 namespace Flask::Network
 {
-WebsocketServer::WebsocketServer() : m_tcp_acceptor(m_io_context, {{}, s_websocket_port}) {}
+WebsocketServer::WebsocketServer(boost::asio::io_context& io_context)
+    : m_io_context(io_context), m_tcp_acceptor(m_io_context, {{}, s_websocket_port})
+{
+}
 
 void WebsocketServer::accept()
 {
@@ -20,14 +23,6 @@ void WebsocketServer::accept()
 
         accept();
     });
-}
-
-boost::system::error_code WebsocketServer::poll()
-{
-    boost::system::error_code error_code;
-    m_io_context.poll(error_code);
-
-    return error_code;
 }
 
 void WebsocketServer::did_client_die(Badge<Client>, Client& client)

@@ -1,7 +1,9 @@
 #pragma once
 
+#include "Badge.h"
 #include "Modules/Forward.h"
 #include "Tier0Logger.h"
+#include <boost/asio/io_context.hpp>
 #include <iserverplugin.h>
 #include <memory>
 #include <string_view>
@@ -41,7 +43,11 @@ public:
     static Plugin s_the;
     static Plugin& the() { return s_the; }
 
+    void update(Badge<Modules::GameSystem>);
+
     static std::string_view s_client_library_name;
+
+    boost::asio::io_context& io_context() { return *m_io_context; }
 
     // These _should_ return const references, but the Source interfaces don't have a ton of const correctness, so it
     // only results in many const_casts... so do without it.
@@ -54,6 +60,8 @@ public:
     Modules::Server& server() { return *m_server; }
 
 private:
+    std::unique_ptr<boost::asio::io_context> m_io_context;
+
     std::unique_ptr<Modules::Interfaces> m_interfaces;
     std::unique_ptr<Modules::NetworkCache> m_network_cache;
     std::unique_ptr<Modules::EntityListener> m_entity_listener;
