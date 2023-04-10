@@ -70,9 +70,11 @@ void Server::FireGameEvent(IGameEvent* event)
             *DataTableHelper::get_property_value_from_object<int>(victim_entity, base_entity_team_number_property);
 
         Network::Client::DeathEvent death_event{.attacker = {.user_id = event->GetInt("attacker"),
+                                                             .entity_id = attacker_entity_index,
                                                              .name = attacker_info.name,
                                                              .team = static_cast<uint8_t>(attacker_team)},
                                                 .victim = {.user_id = event->GetInt("userid"),
+                                                           .entity_id = victim_entity_index,
                                                            .name = victim_info.name,
                                                            .team = static_cast<uint8_t>(victim_team)},
                                                 .weapon_classname = event->GetString("weapon_logclassname"),
@@ -95,6 +97,7 @@ void Server::FireGameEvent(IGameEvent* event)
                 assister_entity, base_entity_team_number_property);
 
             death_event.assister = {.user_id = event->GetInt("assister"),
+                                    .entity_id = assister_entity_index,
                                     .name = assister_info.name,
                                     .team = static_cast<uint8_t>(assister_team)};
         }

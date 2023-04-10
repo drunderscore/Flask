@@ -20,6 +20,7 @@ public:
         struct Player
         {
             int user_id;
+            int entity_id;
             std::string name;
             uint8_t team;
         };

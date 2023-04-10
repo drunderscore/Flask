@@ -148,7 +148,7 @@ void Client::did_player_death(const DeathEvent& death_event)
 
 void to_json(nlohmann::json& json, const Client::DeathEvent::Player& player)
 {
-    json = {{"user_id", player.user_id}, {"name", player.name}, {"team", player.team}};
+    json = {{"user_id", player.user_id}, {"name", player.name}, {"team", player.team}, {"entity_id", player.entity_id}};
 }
 
 void to_json(nlohmann::json& json, const Client::DeathEvent& death_event)
