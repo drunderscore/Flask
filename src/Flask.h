@@ -6,6 +6,7 @@
 #include <boost/asio/io_context.hpp>
 #include <iserverplugin.h>
 #include <memory>
+#include <span>
 #include <string_view>
 
 class C_HLTVCamera;
@@ -45,6 +46,8 @@ public:
 
     void update(Badge<Modules::GameSystem>);
 
+    std::span<uint8_t> client_library_bytes() const { return m_client_library_bytes; }
+
     static std::string_view s_client_library_name;
 
     boost::asio::io_context& io_context() { return *m_io_context; }
@@ -61,6 +64,7 @@ public:
 
 private:
     std::unique_ptr<boost::asio::io_context> m_io_context;
+    std::span<uint8_t> m_client_library_bytes;
 
     std::unique_ptr<Modules::Interfaces> m_interfaces;
     std::unique_ptr<Modules::NetworkCache> m_network_cache;

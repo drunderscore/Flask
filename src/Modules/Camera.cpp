@@ -9,9 +9,9 @@ namespace Flask::Modules
 {
 #ifdef POSIX
 // Call is from CViewRender::SetUpViews
-Signature Camera::s_call_to_hltv_camera_singleton_getter(
+JMP::Signature Camera::s_call_to_hltv_camera_singleton_getter(
     "E8 ? ? ? ? 8B 8D 54 FF FF FF 89 74 24 0C 8B 95 50 FF FF FF 89 04 24 89 4C 24 08 89 54 24 04 E8 ? ? ? ? C6 85 43 FF FF FF 00"sv);
-Signature Camera::s_hltv_camera_set_primary_target_function(
+JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
     "55 89 E5 57 56 53 83 EC 3C 8B 5D 08 8B 45 0C 8B 7B 28 39 C7 0F 84 ? ? ? ? 89 43 28"sv);
 #else
 // Call is from CViewRender::SetUpViews
@@ -21,14 +21,14 @@ Signature Camera::s_hltv_camera_set_primary_target_function(
     "55 8B EC 8B 45 08 83 EC 18 53 56 8B F1 8B 5E 28 3B D8 0F 84 ? ? ? ? 89 46 28"sv);
 #endif
 
-Camera::Camera()
+Camera::Camera(const Plugin& plugin)
 {
     // Because this singleton getter only returns the address of some static, it's impossible to write a signature for
     // the function. Instead, we've written a signature for a CALL to it. Once we have that address, we take the operand
     // and add the base address + 5 (because calls are relative)
 
     auto address_of_call_to_hltv_camera_singleton_getter =
-        s_call_to_hltv_camera_singleton_getter.find_in_library(Plugin::s_client_library_name.data());
+        s_call_to_hltv_camera_singleton_getter.find_in(plugin.client_library_bytes());
 
     if (!address_of_call_to_hltv_camera_singleton_getter)
         throw std::runtime_error("Failed to find call to C_HLTVCamera singleton getter");
@@ -41,7 +41,7 @@ Camera::Camera()
         address_of_call_to_hltv_camera_singleton_getter_integer + 5);
 
     if (!(m_hltv_camera_set_primary_target_function = reinterpret_cast<C_HLTVCameraSetPrimaryTargetFn>(
-              s_hltv_camera_set_primary_target_function.find_in_library(Plugin::s_client_library_name.data()))))
+              s_hltv_camera_set_primary_target_function.find_in(plugin.client_library_bytes()))))
         throw std::runtime_error("Failed to find C_HLTVCamera::SetPrimaryTarget");
 }
 

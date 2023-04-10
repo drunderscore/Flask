@@ -8,3 +8,6 @@
 [submodule "json"]
 	path = json
 	url = https://github.com/nlohmann/json
+[submodule "JMP"]
+	path = JMP
+	url = https://github.com/drunderscore/JMP

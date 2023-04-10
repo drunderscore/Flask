@@ -4,8 +4,8 @@
 #include <platform.h>
 
 #include "../Forward.h"
-#include "../Signature.h"
 #include <../game/shared/igamesystem.h>
+#include <JMP/Signature.h>
 
 class IGameSystem;
 
@@ -36,8 +36,8 @@ protected:
     void PostRender() override {}
 
 private:
-    static Signature s_game_system_add_function;
-    static Signature s_game_system_remove_function;
+    static JMP::Signature s_game_system_add_function;
+    static JMP::Signature s_game_system_remove_function;
 
     typedef void (*IGameSystemAddFn)(IGameSystem*);
     typedef void (*IGameSystemRemoveFn)(IGameSystem*);

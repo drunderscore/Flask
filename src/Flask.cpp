@@ -6,8 +6,8 @@
 #include "Modules/Interfaces.h"
 #include "Modules/NetworkCache.h"
 #include "Modules/Server.h"
-#include "Platform.h"
 #include "Tier0Logger.h"
+#include <JMP/Platform.h>
 #include <spdlog/spdlog.h>
 #include <tier1.h>
 
@@ -40,8 +40,9 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
     if (developer_convar.GetBool())
         spdlog::set_level(spdlog::level::debug);
 
-    Platform::modify_memory_protection(Platform::get_bytes_for_library_name(s_client_library_name.data()),
-                                       {.read = true, .write = true, .execute = true});
+    m_client_library_bytes = JMP::Platform::get_bytes_for_library_name(s_client_library_name.data());
+
+    JMP::Platform::modify_memory_protection(m_client_library_bytes, {.read = true, .write = true, .execute = true});
 
     try
     {
@@ -52,7 +53,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         m_entity_listener = std::make_unique<Modules::EntityListener>(*this);
         m_hide_respawn_room_visualizer = std::make_unique<Modules::HideRespawnRoomVisualizers>(*this);
         m_game_system = std::make_unique<Modules::GameSystem>(*this);
-        m_camera = std::make_unique<Modules::Camera>();
+        m_camera = std::make_unique<Modules::Camera>(*this);
         m_server = std::make_unique<Modules::Server>(*this);
     }
     catch (const std::exception& ex)

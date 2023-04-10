@@ -16,13 +16,13 @@ elseif (WIN32)
 endif ()
 
 add_subdirectory(spdlog)
+add_subdirectory(JMP)
 
 add_library(Flask SHARED
         src/DataTableHelper.cpp
         src/Flask.cpp
         src/Network/Client.cpp
         src/Network/WebsocketServer.cpp
-        src/Signature.cpp
 
         src/Modules/Camera.cpp
         src/Modules/EntityListener.cpp
@@ -48,6 +48,8 @@ target_include_directories(Flask SYSTEM PRIVATE
         ${HL2SDK_PATH}/public/tier0
         ${HL2SDK_PATH}/public/tier1
         ${HL2SDK_PATH}/public/game/server
+
+        JMP/src
         )
 
 
@@ -71,15 +73,11 @@ if (UNIX)
     #        To remedy, I've placed this modified header file in the include path, which forces Boost to use a different
     #        allocation method... this is garbage.
     target_include_directories(Flask SYSTEM PRIVATE FakeBoostAsio)
-
-    target_sources(Flask PRIVATE src/Platforms/Linux.cpp)
 elseif (WIN32)
     target_compile_definitions(Flask PRIVATE WIN32_LEAN_AND_MEAN)
     # Doesn't look like we need FakeBoostAsio changes on Windows, it works without them...
     # This Boost path is the one recommended by the developers.
     target_include_directories(Flask SYSTEM PRIVATE "C:/Program Files/boost_1_80_0")
-
-    target_sources(Flask PRIVATE src/Platforms/Windows.cpp)
 endif ()
 
 target_link_directories(Flask PRIVATE ${TF2_PATH}/bin)
@@ -96,4 +94,4 @@ elseif (WIN32)
 
 endif ()
 
-target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog)
+target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP)

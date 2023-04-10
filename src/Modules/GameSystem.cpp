@@ -10,8 +10,8 @@ IGameSystemPerFrame::~IGameSystemPerFrame() = default;
 namespace Flask::Modules
 {
 #ifdef POSIX
-Signature GameSystem::s_game_system_add_function("55 89 E5 56 53 83 EC 10 8B 35 ? ? ? ? A1 ? ? ? ? 8B 5D 08"sv);
-Signature GameSystem::s_game_system_remove_function("55 89 E5 56 53 83 EC 10 8B 15 ? ? ? ? 8B 5D 08 85 D2"sv);
+JMP::Signature GameSystem::s_game_system_add_function("55 89 E5 56 53 83 EC 10 8B 35 ? ? ? ? A1 ? ? ? ? 8B 5D 08"sv);
+JMP::Signature GameSystem::s_game_system_remove_function("55 89 E5 56 53 83 EC 10 8B 15 ? ? ? ? 8B 5D 08 85 D2"sv);
 #else
 Signature GameSystem::s_game_system_add_function("55 8B EC 51 8B 15 ? ? ? ? 8B 0D ? ? ? ? 56 8B F2 8D 42 01 3B C1"sv);
 // This is quite literally the entire function... it seems MSVC does some funny things with inheritance of virtual
@@ -22,14 +22,14 @@ Signature GameSystem::s_game_system_remove_function(
 
 GameSystem::GameSystem(Plugin& plugin) : m_plugin(plugin)
 {
-    auto game_system_add_function = reinterpret_cast<IGameSystemAddFn>(
-        s_game_system_add_function.find_in_library(Plugin::s_client_library_name.data()));
+    auto game_system_add_function =
+        reinterpret_cast<IGameSystemAddFn>(s_game_system_add_function.find_in(m_plugin.client_library_bytes()));
 
     if (!game_system_add_function)
         throw std::runtime_error("Failed to find IGameSystem::Add");
 
     if (!(m_game_system_remove_function = reinterpret_cast<IGameSystemRemoveFn>(
-              s_game_system_remove_function.find_in_library(Plugin::s_client_library_name.data()))))
+              s_game_system_remove_function.find_in(m_plugin.client_library_bytes()))))
         throw std::runtime_error("Failed to find IGameSystem::Remove");
 
     game_system_add_function(this);
