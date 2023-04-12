@@ -78,8 +78,9 @@ private:
     std::queue<std::string> m_pending_messages_to_send;
 };
 
+// This structure has an optional in it, which nlohammn JSON still can't handle...
 void to_json(nlohmann::json& json, const Client::PlayerDeathEvent&);
-void to_json(nlohmann::json& json, const Client::PlayerDeathEvent::Player&);
-void to_json(nlohmann::json& json, const Client::ObserveTargetEvent&);
-void to_json(nlohmann::json& json, const Client::UserInteractionEvent&);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Client::PlayerDeathEvent::Player, user_id, entity_id, name, team);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Client::ObserveTargetEvent, index);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Client::UserInteractionEvent, data);
 }

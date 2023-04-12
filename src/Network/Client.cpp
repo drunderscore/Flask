@@ -152,19 +152,4 @@ void to_json(nlohmann::json& json, const Client::PlayerDeathEvent& player_death_
     if (player_death_event.assister.has_value())
         json["assister"] = *player_death_event.assister;
 }
-
-void to_json(nlohmann::json& json, const Client::PlayerDeathEvent::Player& player)
-{
-    json = {{"user_id", player.user_id}, {"name", player.name}, {"team", player.team}, {"entity_id", player.entity_id}};
-}
-
-void to_json(nlohmann::json& json, const Client::ObserveTargetEvent& observe_target_event)
-{
-    json = {{"index", observe_target_event.index}};
-}
-
-void to_json(nlohmann::json& json, const Client::UserInteractionEvent& user_interaction_event)
-{
-    json = {{"data", user_interaction_event.data}};
-}
 }
