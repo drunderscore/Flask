@@ -42,41 +42,9 @@ void Server::FireGameEvent(IGameEvent* event)
     else if (event->GetName() == "player_death"sv)
     {
         auto crit_type = event->GetInt("crit_type");
-        auto& engine_client = m_plugin.interfaces().engine_client();
 
-        auto attacker_userid = event->GetInt("attacker");
-        auto victim_userid = event->GetInt("userid");
-        auto assister_userid = event->GetInt("assister");
-
-        auto attacker_entity_index = engine_client.GetPlayerForUserID(attacker_userid);
-        auto victim_entity_index = engine_client.GetPlayerForUserID(victim_userid);
-
-        player_info_t attacker_info{};
-        player_info_t victim_info{};
-
-        engine_client.GetPlayerInfo(attacker_entity_index, &attacker_info);
-        engine_client.GetPlayerInfo(victim_entity_index, &victim_info);
-
-        auto attacker_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(attacker_entity_index);
-        auto victim_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(victim_entity_index);
-
-        auto& base_entity_team_number_property = *DataTableHelper::get_property_from_table_by_name_including_bases(
-            *m_plugin.network_cache().find_receive_table_by_name("DT_BaseEntity"), "m_iTeamNum");
-
-        // NOTE: This might be wrong... cause it might end up being only in C_PlayerResource
-        auto attacker_team =
-            *DataTableHelper::get_property_value_from_object<int>(attacker_entity, base_entity_team_number_property);
-        auto victim_team =
-            *DataTableHelper::get_property_value_from_object<int>(victim_entity, base_entity_team_number_property);
-
-        PlayerDeathEvent player_death_event{.attacker = {.user_id = event->GetInt("attacker"),
-                                                         .entity_id = attacker_entity_index,
-                                                         .name = attacker_info.name,
-                                                         .team = static_cast<uint8_t>(attacker_team)},
-                                            .victim = {.user_id = event->GetInt("userid"),
-                                                       .entity_id = victim_entity_index,
-                                                       .name = victim_info.name,
-                                                       .team = static_cast<uint8_t>(victim_team)},
+        PlayerDeathEvent player_death_event{.attacker = create_player_from_user_id(event->GetInt("attacker")),
+                                            .victim = create_player_from_user_id(event->GetInt("userid")),
                                             .weapon_classname = event->GetString("weapon_logclassname"),
                                             .weapon_name = event->GetString("weapon"),
                                             .weapon_id = event->GetInt("weaponid"),
@@ -86,21 +54,8 @@ void Server::FireGameEvent(IGameEvent* event)
                                                          : crit_type == 2 ? "full"
                                                                           : "unknown"};
 
-        if (assister_userid != -1)
-        {
-            auto assister_entity_index = engine_client.GetPlayerForUserID(assister_userid);
-            auto assister_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(assister_entity_index);
-            player_info_t assister_info{};
-            engine_client.GetPlayerInfo(assister_entity_index, &assister_info);
-
-            auto assister_team = *DataTableHelper::get_property_value_from_object<int>(
-                assister_entity, base_entity_team_number_property);
-
-            player_death_event.assister = {.user_id = event->GetInt("assister"),
-                                           .entity_id = assister_entity_index,
-                                           .name = assister_info.name,
-                                           .team = static_cast<uint8_t>(assister_team)};
-        }
+        if (auto assister_userid = event->GetInt("assister"); assister_userid != -1)
+            player_death_event.assister = create_player_from_user_id(assister_userid);
 
         send(player_death_event);
     }
@@ -116,6 +71,21 @@ void Server::flask_send_user_interaction(const CCommand& args)
 {
     if (args.ArgC() >= 2)
         Plugin::the().server().send<UserInteractionEvent>({args.Arg(1)});
+}
+
+Server::Player Server::create_player_from_user_id(uint8_t user_id)
+{
+    auto entity_index = m_plugin.interfaces().engine_client().GetPlayerForUserID(user_id);
+    player_info_t player_info{};
+
+    m_plugin.interfaces().engine_client().GetPlayerInfo(entity_index, &player_info);
+
+    auto& base_entity_team_number_property = *DataTableHelper::get_property_from_table_by_name_including_bases(
+        *m_plugin.network_cache().find_receive_table_by_name("DT_BaseEntity"), "m_iTeamNum");
+    auto entity = m_plugin.interfaces().client_entity_list().GetClientEntity(entity_index);
+    auto team = *DataTableHelper::get_property_value_from_object<int>(entity, base_entity_team_number_property);
+
+    return {user_id, entity_index, player_info.name, static_cast<uint8_t>(team)};
 }
 
 void to_json(nlohmann::json& json, const Server::PlayerDeathEvent& player_death_event)
