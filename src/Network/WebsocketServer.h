@@ -20,11 +20,11 @@ public:
     virtual void on_client_connected(Badge<Client>, Client&) = 0;
 
 protected:
-    void did_observe_target_change(int index) { invoke_on_all_clients(&Client::did_observe_target_change, index); }
-    void did_user_interact(std::string_view data) { invoke_on_all_clients(&Client::did_user_interact, data); }
-    void did_player_death(const Client::DeathEvent& death_event)
+    template<typename TEvent>
+    void send(const TEvent& event)
     {
-        invoke_on_all_clients(&Client::did_player_death, death_event);
+        for (auto& client : m_clients)
+            client->send(event);
     }
 
     const std::vector<std::unique_ptr<Client>>& clients() const { return m_clients; }
@@ -36,12 +36,5 @@ private:
     boost::beast::net::ip::tcp::acceptor m_tcp_acceptor;
     std::unique_ptr<boost::beast::net::ip::tcp::socket> m_awaiting_socket;
     std::vector<std::unique_ptr<Client>> m_clients;
-
-    template<typename R, typename... Args1, typename... Args2>
-    void invoke_on_all_clients(R (Client::*mf)(Args1...), Args2&&... args)
-    {
-        for (auto& client : m_clients)
-            (*client.*mf)(std::forward<Args2>(args)...);
-    }
 };
 }

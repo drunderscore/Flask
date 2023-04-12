@@ -137,33 +137,34 @@ void Client::on_message(nlohmann::json message)
     }
 }
 
-void Client::did_observe_target_change(int index) { send({{"event", Events::observe_target}, {"index", index}}); }
-void Client::did_user_interact(std::string_view data) { send({{"event", Events::user_interaction}, {"data", data}}); }
-void Client::did_player_death(const DeathEvent& death_event)
+void to_json(nlohmann::json& json, const Client::PlayerDeathEvent& player_death_event)
 {
-    nlohmann::json death_event_json = death_event;
-    death_event_json["event"] = Events::player_death;
-    send(death_event_json);
+    json = {
+        {"attacker", player_death_event.attacker},
+        {"victim", player_death_event.victim},
+        {"weapon_classname", player_death_event.weapon_classname},
+        {"weapon_name", player_death_event.weapon_name},
+        {"weapon_id", player_death_event.weapon_id},
+        {"weapon_definition_index", player_death_event.weapon_definition_index},
+        {"crit_type", player_death_event.crit_type},
+    };
+
+    if (player_death_event.assister.has_value())
+        json["assister"] = *player_death_event.assister;
 }
 
-void to_json(nlohmann::json& json, const Client::DeathEvent::Player& player)
+void to_json(nlohmann::json& json, const Client::PlayerDeathEvent::Player& player)
 {
     json = {{"user_id", player.user_id}, {"name", player.name}, {"team", player.team}, {"entity_id", player.entity_id}};
 }
 
-void to_json(nlohmann::json& json, const Client::DeathEvent& death_event)
+void to_json(nlohmann::json& json, const Client::ObserveTargetEvent& observe_target_event)
 {
-    json = {
-        {"attacker", death_event.attacker},
-        {"victim", death_event.victim},
-        {"weapon_classname", death_event.weapon_classname},
-        {"weapon_name", death_event.weapon_name},
-        {"weapon_id", death_event.weapon_id},
-        {"weapon_definition_index", death_event.weapon_definition_index},
-        {"crit_type", death_event.crit_type},
-    };
+    json = {{"index", observe_target_event.index}};
+}
 
-    if (death_event.assister.has_value())
-        json["assister"] = *death_event.assister;
+void to_json(nlohmann::json& json, const Client::UserInteractionEvent& user_interaction_event)
+{
+    json = {{"data", user_interaction_event.data}};
 }
 }

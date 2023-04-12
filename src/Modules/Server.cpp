@@ -30,14 +30,14 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
 {
     spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.remote_endpoint()));
 
-    client.did_observe_target_change(m_plugin.camera().camera().target_1);
+    client.send<Network::Client::ObserveTargetEvent>({static_cast<uint8_t>(m_plugin.camera().camera().target_1)});
 }
 
 void Server::FireGameEvent(IGameEvent* event)
 {
     if (event->GetName() == "hltv_changed_target"sv)
     {
-        did_observe_target_change(event->GetInt("obs_target"));
+        send<Network::Client::ObserveTargetEvent>({static_cast<uint8_t>(event->GetInt("obs_target"))});
     }
     else if (event->GetName() == "player_death"sv)
     {
@@ -69,22 +69,23 @@ void Server::FireGameEvent(IGameEvent* event)
         auto victim_team =
             *DataTableHelper::get_property_value_from_object<int>(victim_entity, base_entity_team_number_property);
 
-        Network::Client::DeathEvent death_event{.attacker = {.user_id = event->GetInt("attacker"),
-                                                             .entity_id = attacker_entity_index,
-                                                             .name = attacker_info.name,
-                                                             .team = static_cast<uint8_t>(attacker_team)},
-                                                .victim = {.user_id = event->GetInt("userid"),
-                                                           .entity_id = victim_entity_index,
-                                                           .name = victim_info.name,
-                                                           .team = static_cast<uint8_t>(victim_team)},
-                                                .weapon_classname = event->GetString("weapon_logclassname"),
-                                                .weapon_name = event->GetString("weapon"),
-                                                .weapon_id = event->GetInt("weaponid"),
-                                                .weapon_definition_index = event->GetInt("weapon_def_index"),
-                                                .crit_type = crit_type == 0   ? "none"
-                                                             : crit_type == 1 ? "mini"
-                                                             : crit_type == 2 ? "full"
-                                                                              : "unknown"};
+        Network::Client::PlayerDeathEvent player_death_event{
+            .attacker = {.user_id = event->GetInt("attacker"),
+                         .entity_id = attacker_entity_index,
+                         .name = attacker_info.name,
+                         .team = static_cast<uint8_t>(attacker_team)},
+            .victim = {.user_id = event->GetInt("userid"),
+                       .entity_id = victim_entity_index,
+                       .name = victim_info.name,
+                       .team = static_cast<uint8_t>(victim_team)},
+            .weapon_classname = event->GetString("weapon_logclassname"),
+            .weapon_name = event->GetString("weapon"),
+            .weapon_id = event->GetInt("weaponid"),
+            .weapon_definition_index = event->GetInt("weapon_def_index"),
+            .crit_type = crit_type == 0   ? "none"
+                         : crit_type == 1 ? "mini"
+                         : crit_type == 2 ? "full"
+                                          : "unknown"};
 
         if (assister_userid != -1)
         {
@@ -96,13 +97,13 @@ void Server::FireGameEvent(IGameEvent* event)
             auto assister_team = *DataTableHelper::get_property_value_from_object<int>(
                 assister_entity, base_entity_team_number_property);
 
-            death_event.assister = {.user_id = event->GetInt("assister"),
-                                    .entity_id = assister_entity_index,
-                                    .name = assister_info.name,
-                                    .team = static_cast<uint8_t>(assister_team)};
+            player_death_event.assister = {.user_id = event->GetInt("assister"),
+                                           .entity_id = assister_entity_index,
+                                           .name = assister_info.name,
+                                           .team = static_cast<uint8_t>(assister_team)};
         }
 
-        did_player_death(death_event);
+        send(player_death_event);
     }
 }
 
@@ -115,6 +116,6 @@ void Server::flask_network_client_list(const CCommand&)
 void Server::flask_send_user_interaction(const CCommand& args)
 {
     if (args.ArgC() >= 2)
-        Plugin::the().server().did_user_interact(args.Arg(1));
+        Plugin::the().server().send<Network::Client::UserInteractionEvent>({args.Arg(1)});
 }
 }

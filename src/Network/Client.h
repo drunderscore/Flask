@@ -4,7 +4,7 @@
 #include "Forward.h"
 #undef clamp
 #include <boost/beast.hpp>
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <queue>
 #include <string>
@@ -15,7 +15,7 @@ namespace Flask::Network
 class Client
 {
 public:
-    struct DeathEvent
+    struct PlayerDeathEvent
     {
         struct Player
         {
@@ -33,17 +33,35 @@ public:
         int weapon_id;
         int weapon_definition_index;
         std::string crit_type;
+
+        static constexpr std::string_view s_event_name = "player_death";
+    };
+
+    struct ObserveTargetEvent
+    {
+        uint8_t index;
+
+        static constexpr std::string_view s_event_name = "observe_target";
+    };
+
+    struct UserInteractionEvent
+    {
+        std::string data;
+
+        static constexpr std::string_view s_event_name = "user_interaction";
     };
 
     Client(boost::beast::net::ip::tcp::socket&&, WebsocketServer&);
 
     auto remote_endpoint() { return m_websocket.next_layer().socket().remote_endpoint(); }
 
-    inline void send(Badge<WebsocketServer>, const nlohmann::json& message) { send(message); }
-
-    void did_observe_target_change(int index);
-    void did_user_interact(std::string_view data);
-    void did_player_death(const DeathEvent&);
+    template<typename TEvent>
+    void send(const TEvent& event)
+    {
+        nlohmann::json event_serialized_to_json = event;
+        event_serialized_to_json["event"] = event.s_event_name;
+        send(event_serialized_to_json);
+    }
 
 private:
     void read();
@@ -60,6 +78,8 @@ private:
     std::queue<std::string> m_pending_messages_to_send;
 };
 
-void to_json(nlohmann::json& json, const Client::DeathEvent&);
-void to_json(nlohmann::json& json, const Client::DeathEvent::Player&);
+void to_json(nlohmann::json& json, const Client::PlayerDeathEvent&);
+void to_json(nlohmann::json& json, const Client::PlayerDeathEvent::Player&);
+void to_json(nlohmann::json& json, const Client::ObserveTargetEvent&);
+void to_json(nlohmann::json& json, const Client::UserInteractionEvent&);
 }
