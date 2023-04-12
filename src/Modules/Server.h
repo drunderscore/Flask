@@ -20,6 +20,42 @@ public:
 
     void FireGameEvent(IGameEvent*) override;
 
+    struct PlayerDeathEvent
+    {
+        struct Player
+        {
+            int user_id;
+            int entity_id;
+            std::string name;
+            uint8_t team;
+        };
+
+        Player attacker;
+        Player victim;
+        std::optional<Player> assister;
+        std::string weapon_classname;
+        std::string weapon_name;
+        int weapon_id;
+        int weapon_definition_index;
+        std::string crit_type;
+
+        static constexpr std::string_view s_event_name = "player_death";
+    };
+
+    struct ObserveTargetEvent
+    {
+        uint8_t index;
+
+        static constexpr std::string_view s_event_name = "observe_target";
+    };
+
+    struct UserInteractionEvent
+    {
+        std::string data;
+
+        static constexpr std::string_view s_event_name = "user_interaction";
+    };
+
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
@@ -28,4 +64,10 @@ private:
     static void flask_network_client_list(const CCommand&);
     static void flask_send_user_interaction(const CCommand&);
 };
+
+// This structure has an optional in it, which nlohammn JSON still can't handle...
+void to_json(nlohmann::json& json, const Server::PlayerDeathEvent&);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerDeathEvent::Player, user_id, entity_id, name, team);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetEvent, index);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
 }

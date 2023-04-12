@@ -136,20 +136,4 @@ void Client::on_message(nlohmann::json message)
         misbehave(ex.what());
     }
 }
-
-void to_json(nlohmann::json& json, const Client::PlayerDeathEvent& player_death_event)
-{
-    json = {
-        {"attacker", player_death_event.attacker},
-        {"victim", player_death_event.victim},
-        {"weapon_classname", player_death_event.weapon_classname},
-        {"weapon_name", player_death_event.weapon_name},
-        {"weapon_id", player_death_event.weapon_id},
-        {"weapon_definition_index", player_death_event.weapon_definition_index},
-        {"crit_type", player_death_event.crit_type},
-    };
-
-    if (player_death_event.assister.has_value())
-        json["assister"] = *player_death_event.assister;
-}
 }
