@@ -18,6 +18,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
 {
     plugin.interfaces().game_event_manager().AddListener(this, "hltv_changed_target", false);
     plugin.interfaces().game_event_manager().AddListener(this, "player_death", false);
+    plugin.interfaces().game_event_manager().AddListener(this, "object_destroyed", false);
 
     accept();
 }
@@ -58,6 +59,20 @@ void Server::FireGameEvent(IGameEvent* event)
             player_death_event.assister = create_player_from_user_id(assister_userid);
 
         send(player_death_event);
+    }
+    else if (event->GetName() == "object_destroyed"sv)
+    {
+        auto owner_user_id = event->GetInt("userid", -1);
+
+        // FIXME: Perhaps we should care about objects without owners?
+        if (owner_user_id == -1)
+            return;
+
+        send<ObjectDestroyedEvent>({.owner = create_player_from_user_id(owner_user_id),
+                                    .attacker = create_player_from_user_id(event->GetInt("attacker")),
+                                    .object_type = static_cast<uint8_t>(event->GetInt("objecttype")),
+                                    .entity_id = event->GetInt("index"),
+                                    .weapon = event->GetString("weapon")});
     }
 }
 

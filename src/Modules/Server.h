@@ -56,6 +56,18 @@ public:
         static constexpr std::string_view s_event_name = "user_interaction";
     };
 
+    // NOTE: This is missing the information about the assisting player, but it isn't truly all that important.
+    struct ObjectDestroyedEvent
+    {
+        Player owner;
+        Player attacker;
+        uint8_t object_type;
+        int entity_id;
+        std::string weapon;
+
+        static constexpr std::string_view s_event_name = "object_destroyed";
+    };
+
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
@@ -72,4 +84,5 @@ void to_json(nlohmann::json& json, const Server::PlayerDeathEvent&);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, team);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetEvent, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker, object_type, entity_id, weapon);
 }
