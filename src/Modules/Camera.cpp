@@ -15,9 +15,9 @@ JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
     "55 89 E5 57 56 53 83 EC 3C 8B 5D 08 8B 45 0C 8B 7B 28 39 C7 0F 84 ? ? ? ? 89 43 28"sv);
 #else
 // Call is from CViewRender::SetUpViews
-Signature Camera::s_call_to_hltv_camera_singleton_getter(
+JMP::Signature Camera::s_call_to_hltv_camera_singleton_getter(
     "E8 ? ? ? ? 8B C8 E8 ? ? ? ? E9 ? ? ? ? 8B 0D ? ? ? ? 8B 01 8B 40 20"sv);
-Signature Camera::s_hltv_camera_set_primary_target_function(
+JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
     "55 8B EC 8B 45 08 83 EC 18 53 56 8B F1 8B 5E 28 3B D8 0F 84 ? ? ? ? 89 46 28"sv);
 #endif
 

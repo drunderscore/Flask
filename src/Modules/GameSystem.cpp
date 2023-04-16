@@ -13,10 +13,11 @@ namespace Flask::Modules
 JMP::Signature GameSystem::s_game_system_add_function("55 89 E5 56 53 83 EC 10 8B 35 ? ? ? ? A1 ? ? ? ? 8B 5D 08"sv);
 JMP::Signature GameSystem::s_game_system_remove_function("55 89 E5 56 53 83 EC 10 8B 15 ? ? ? ? 8B 5D 08 85 D2"sv);
 #else
-Signature GameSystem::s_game_system_add_function("55 8B EC 51 8B 15 ? ? ? ? 8B 0D ? ? ? ? 56 8B F2 8D 42 01 3B C1"sv);
+JMP::Signature GameSystem::s_game_system_add_function(
+    "55 8B EC 51 8B 15 ? ? ? ? 8B 0D ? ? ? ? 56 8B F2 8D 42 01 3B C1"sv);
 // This is quite literally the entire function... it seems MSVC does some funny things with inheritance of virtual
 // destructors, so there are one or two incredibly similar, nearly identical functions...
-Signature GameSystem::s_game_system_remove_function(
+JMP::Signature GameSystem::s_game_system_remove_function(
     "55 8B EC 51 56 8B F1 8D 45 FC 50 B9 ? ? ? ? 89 75 FC C7 06 ? ? ? ? E8 ? ? ? ? 6A 00 68 ? ? ? ? 68 ? ? ? ? 6A 00 56 E8 ? ? ? ? 83 C4 14 85 C0 74 ? 8D 45 FC 89 75 FC 50 B9 ? ? ? ? E8 ? ? ? ? F6 45 08 01 74 ? 6A 0C 56 E8 ? ? ? ? 83 C4 08 8B C6 5E 8B E5 5D C2 04 00"sv);
 #endif
 
