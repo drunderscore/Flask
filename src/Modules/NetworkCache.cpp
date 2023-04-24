@@ -7,6 +7,10 @@
 #undef clamp
 #include <spdlog/spdlog.h>
 
+// Windows defines GetProp as a macro to defer to GetPropA/GetPropW, depending on unicode support.
+// We undefine this macro as we don't need it, and it conflicts with the RecvTable::GetProp method.
+#undef GetProp
+
 namespace Flask::Modules
 {
 NetworkCache::NetworkCache(Plugin& plugin)
