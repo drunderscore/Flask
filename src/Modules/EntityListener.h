@@ -19,7 +19,7 @@ private:
     // CClientEntityList::OnAddEntity is in a vtable, however multi-inheritance makes it difficult to get at that vtable
     // because it if offset by the members of another superclass. This is the offset of that VTable from an
     // IClientEntityList.
-    static constexpr uintptr_t s_client_entity_list_vtable_offset = 65556;
+    static constexpr uintptr_t s_client_entity_list_vtable_offset = 131092;
 
 #ifdef POSIX
     static __attribute__((cdecl)) void on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
