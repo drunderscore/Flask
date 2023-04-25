@@ -33,6 +33,14 @@ add_library(Flask SHARED
         src/Modules/Server.cpp
         )
 
+# FIXME: Rebasing/merging alliedmodders/hl2sdk into drunderscore/hl2sdk got us the VScript changes, but it also got us
+#        some changes to utlvector.h. These changes do not compile on Linux without -fpermissive.
+#        On it's own it's not that problematic, but it means that ALL of my code will also be compiled with
+#        -fpermissive, which isn't desirable at all.
+if (UNIX)
+    target_compile_options(Flask PRIVATE -fpermissive)
+endif ()
+
 target_compile_definitions(Flask PRIVATE
         CLIENT_DLL
         )
