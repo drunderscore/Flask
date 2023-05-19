@@ -25,7 +25,18 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
 
 Server::~Server() { m_plugin.interfaces().game_event_manager().RemoveListener(this); }
 
-void Server::set_observe_target(int index) { m_plugin.camera().set_observe_target(index); }
+void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json& message)
+{
+    if (command == ObserveTargetCommand::s_command_name)
+    {
+        ObserveTargetCommand observe_target_command = message;
+        m_plugin.camera().set_observe_target(observe_target_command.index);
+    }
+    else
+    {
+        throw std::runtime_error("Invalid command");
+    }
+}
 
 void Server::on_client_connected(Badge<Network::Client>, Network::Client& client)
 {

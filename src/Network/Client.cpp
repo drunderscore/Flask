@@ -1,5 +1,4 @@
 #include "Client.h"
-#include "Constants.h"
 #include "WebsocketServer.h"
 #include <boost/lexical_cast.hpp>
 #include <nlohmann/json.hpp>
@@ -122,16 +121,13 @@ void Client::on_message(nlohmann::json message)
         return;
     }
 
-    auto& command = command_value.get_ref<std::string&>();
+    auto command = command_value.get<std::string_view>();
 
     try
     {
-        if (command == Commands::observe_target)
-            m_server.set_observe_target(message["index"].get<int>());
-        else
-            misbehave("Got message with invalid command");
+        m_server.did_receive_command({}, command, message);
     }
-    catch (const nlohmann::json::exception& ex)
+    catch (const std::exception& ex)
     {
         misbehave(ex.what());
     }

@@ -15,7 +15,7 @@ public:
     void accept();
     void did_client_die(Badge<Client>, Client&);
 
-    virtual void set_observe_target(int index) = 0;
+    virtual void did_receive_command(Badge<Client>, std::string_view command, const nlohmann::json&) = 0;
 
     virtual void on_client_connected(Badge<Client>, Client&) = 0;
 

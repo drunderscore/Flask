@@ -14,7 +14,7 @@ public:
     explicit Server(Plugin&);
     ~Server() override;
 
-    void set_observe_target(int index) override;
+    void did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json&) override;
 
     void on_client_connected(Badge<Network::Client>, Network::Client&) override;
 
@@ -68,6 +68,13 @@ public:
         static constexpr std::string_view s_event_name = "object_destroyed";
     };
 
+    struct ObserveTargetCommand
+    {
+        uint8_t index;
+
+        static constexpr std::string_view s_command_name = "observe_target";
+    };
+
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
@@ -85,4 +92,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, tea
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetEvent, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker, object_type, entity_id, weapon);
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
 }
