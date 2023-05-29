@@ -68,6 +68,19 @@ public:
         static constexpr std::string_view s_event_name = "object_destroyed";
     };
 
+    struct PlayerHurtEvent
+    {
+        Player victim;
+        Player attacker;
+        uint16_t health;
+        uint16_t damage;
+        bool crit;
+        bool mini_crit;
+        uint16_t weapon_id;
+
+        static constexpr std::string_view s_event_name = "player_hurt";
+    };
+
     struct ObserveTargetCommand
     {
         uint8_t index;
@@ -92,6 +105,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, tea
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetEvent, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker, object_type, entity_id, weapon);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, health, damage, crit, mini_crit,
+                                   weapon_id);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
 }

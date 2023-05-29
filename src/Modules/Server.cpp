@@ -19,6 +19,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
     plugin.interfaces().game_event_manager().AddListener(this, "hltv_changed_target", false);
     plugin.interfaces().game_event_manager().AddListener(this, "player_death", false);
     plugin.interfaces().game_event_manager().AddListener(this, "object_destroyed", false);
+    plugin.interfaces().game_event_manager().AddListener(this, "player_hurt", true);
 
     accept();
 }
@@ -84,6 +85,18 @@ void Server::FireGameEvent(IGameEvent* event)
                                     .object_type = static_cast<uint8_t>(event->GetInt("objecttype")),
                                     .entity_id = event->GetInt("index"),
                                     .weapon = event->GetString("weapon")});
+    }
+    else if (event->GetName() == "player_hurt"sv)
+    {
+        send<PlayerHurtEvent>({
+            .victim = create_player_from_user_id(event->GetInt("userid")),
+            .attacker = create_player_from_user_id(event->GetInt("attacker")),
+            .health = static_cast<uint16_t>(event->GetInt("health")),
+            .damage = static_cast<uint16_t>(event->GetInt("damageamount")),
+            .crit = event->GetBool("crit"),
+            .mini_crit = event->GetBool("minicrit"),
+            .weapon_id = static_cast<uint16_t>(event->GetInt("weaponid")),
+        });
     }
 }
 
