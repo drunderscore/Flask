@@ -7,7 +7,9 @@
 #include "NetworkCache.h"
 #include <boost/lexical_cast.hpp>
 #include <cdll_int.h>
+#include <client_class.h>
 #include <icliententitylist.h>
+#include <iclientnetworkable.h>
 #include <spdlog/spdlog.h>
 
 using namespace std::string_view_literals;
@@ -65,10 +67,49 @@ void Server::FireGameEvent(IGameEvent* event)
                                             .crit_type = crit_type == 0   ? "none"
                                                          : crit_type == 1 ? "mini"
                                                          : crit_type == 2 ? "full"
-                                                                          : "unknown"};
+                                                                          : "unknown",
+                                            .medic_charged = false};
 
         if (auto assister_userid = event->GetInt("assister"); assister_userid != -1)
             player_death_event.assister = create_player_from_user_id(assister_userid);
+
+        auto victim_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(
+            m_plugin.interfaces().engine_client().GetPlayerForUserID(event->GetInt("userid")));
+
+        auto my_weapons_property = DataTableHelper::get_property_from_table_by_name_including_bases(
+            *m_plugin.network_cache().find_receive_table_by_name("DT_TFPlayer"), "m_hMyWeapons");
+
+        auto my_weapons_handles =
+            DataTableHelper::get_property_value_from_object<int>(victim_entity, *my_weapons_property);
+
+        static constexpr int max_weapons = 48;
+        for (auto i = 0; i < max_weapons; i++)
+        {
+            CBaseHandle weapon_handle(my_weapons_handles[i]);
+
+            if (weapon_handle.IsValid())
+            {
+                auto weapon = m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(weapon_handle);
+
+                if (weapon->GetClientClass()->GetName() == "CWeaponMedigun"sv)
+                {
+                    // Although technically this is stored in two separate data tables at different precisions, it ends
+                    // up in the same place, so let's just pick one.
+                    auto charge_level_property = DataTableHelper::get_property_from_table_by_name(
+                        *m_plugin.network_cache().find_receive_table_by_name("DT_LocalTFWeaponMedigunData"),
+                        "m_flChargeLevel");
+
+                    auto charge_level = *DataTableHelper::get_property_value_from_object<float>(
+                        weapon->GetDataTableBasePtr(), *charge_level_property);
+
+                    if (charge_level >= 1.0f)
+                    {
+                        player_death_event.medic_charged = true;
+                        break;
+                    }
+                }
+            }
+        }
 
         send(player_death_event);
     }
@@ -137,6 +178,7 @@ void to_json(nlohmann::json& json, const Server::PlayerDeathEvent& player_death_
         {"weapon_id", player_death_event.weapon_id},
         {"weapon_definition_index", player_death_event.weapon_definition_index},
         {"crit_type", player_death_event.crit_type},
+        {"medic_charged", player_death_event.medic_charged},
     };
 
     if (player_death_event.assister.has_value())

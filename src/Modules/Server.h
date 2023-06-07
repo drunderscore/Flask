@@ -38,6 +38,7 @@ public:
         int weapon_id;
         int weapon_definition_index;
         std::string crit_type;
+        bool medic_charged;
 
         static constexpr std::string_view s_event_name = "player_death";
     };
