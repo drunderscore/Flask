@@ -11,6 +11,7 @@
 #include <icliententitylist.h>
 #include <iclientnetworkable.h>
 #include <spdlog/spdlog.h>
+#include <toolframework/ienginetool.h>
 
 using namespace std::string_view_literals;
 
@@ -34,6 +35,11 @@ void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view
     {
         ObserveTargetCommand observe_target_command = message;
         m_plugin.camera().set_observe_target(observe_target_command.index);
+    }
+    else if (command == ExecuteCommandCommand::s_command_name)
+    {
+        ExecuteCommandCommand execute_command_command = message;
+        m_plugin.interfaces().engine_tool().Command(execute_command_command.value.c_str());
     }
     else
     {

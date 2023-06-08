@@ -89,6 +89,13 @@ public:
         static constexpr std::string_view s_command_name = "observe_target";
     };
 
+    struct ExecuteCommandCommand
+    {
+        std::string value;
+
+        static constexpr std::string_view s_command_name = "execute_command";
+    };
+
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
@@ -110,4 +117,5 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, he
                                    weapon_id);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ExecuteCommandCommand, value);
 }
