@@ -82,6 +82,13 @@ public:
         static constexpr std::string_view s_event_name = "player_hurt";
     };
 
+    struct TickCountUpdateEvent
+    {
+        uint32_t value;
+
+        static constexpr std::string_view s_event_name = "tick_count";
+    };
+
     struct ObserveTargetCommand
     {
         uint8_t index;
@@ -115,6 +122,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker, object_type, entity_id, weapon);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, health, damage, crit, mini_crit,
                                    weapon_id);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ExecuteCommandCommand, value);

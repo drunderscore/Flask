@@ -52,6 +52,12 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
     spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.remote_endpoint()));
 
     client.send<ObserveTargetEvent>({static_cast<uint8_t>(m_plugin.camera().camera().target_1)});
+
+    // FIXME: If we connect/disconnect/change map/start listen server/lag etc, this might change drastically. Check for
+    //        those changes and re-issue event if needed?
+    // FIXME: What about pauses? Probably need a separate event for that.
+    client.send<TickCountUpdateEvent>(
+        {.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
 }
 
 void Server::FireGameEvent(IGameEvent* event)
