@@ -102,4 +102,5 @@ void Plugin::update(Badge<Modules::GameSystem>)
         spdlog::error("Got error whilst polling Boost::Asio: {}", error_code.to_string());
 }
 
+void Plugin::level_init_post_entity(Badge<Modules::GameSystem>) { m_server->level_init_post_entity({}); }
 }

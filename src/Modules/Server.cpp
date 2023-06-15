@@ -29,6 +29,11 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
 
 Server::~Server() { m_plugin.interfaces().game_event_manager().RemoveListener(this); }
 
+void Server::level_init_post_entity(Badge<Plugin>)
+{
+    send<TickCountUpdateEvent>({.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
+}
+
 void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json& message)
 {
     if (command == ObserveTargetCommand::s_command_name)
@@ -53,8 +58,6 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
 
     client.send<ObserveTargetEvent>({static_cast<uint8_t>(m_plugin.camera().camera().target_1)});
 
-    // FIXME: If we connect/disconnect/change map/start listen server/lag etc, this might change drastically. Check for
-    //        those changes and re-issue event if needed?
     // FIXME: What about pauses? Probably need a separate event for that.
     client.send<TickCountUpdateEvent>(
         {.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});

@@ -20,6 +20,8 @@ public:
 
     void FireGameEvent(IGameEvent*) override;
 
+    void level_init_post_entity(Badge<Plugin>);
+
     struct Player
     {
         int user_id;
