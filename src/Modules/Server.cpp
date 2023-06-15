@@ -88,8 +88,8 @@ void Server::FireGameEvent(IGameEvent* event)
         auto victim_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(
             m_plugin.interfaces().engine_client().GetPlayerForUserID(event->GetInt("userid")));
 
-        auto my_weapons_property = DataTableHelper::get_property_from_table_by_name_including_bases(
-            *m_plugin.network_cache().find_receive_table_by_name("DT_TFPlayer"), "m_hMyWeapons");
+        auto my_weapons_property = m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+            "DT_BaseCombatCharacter", "m_hMyWeapons");
 
         auto my_weapons_handles =
             DataTableHelper::get_property_value_from_object<int>(victim_entity, *my_weapons_property);
@@ -105,11 +105,11 @@ void Server::FireGameEvent(IGameEvent* event)
 
                 if (weapon->GetClientClass()->GetName() == "CWeaponMedigun"sv)
                 {
-                    // Although technically this is stored in two separate data tables at different precisions, it ends
-                    // up in the same place, so let's just pick one.
-                    auto charge_level_property = DataTableHelper::get_property_from_table_by_name(
-                        *m_plugin.network_cache().find_receive_table_by_name("DT_LocalTFWeaponMedigunData"),
-                        "m_flChargeLevel");
+                    // Although technically this is stored in two separate data tables at different precisions, it
+                    // ends up in the same place, so let's just pick one.
+                    auto charge_level_property =
+                        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                            "DT_LocalTFWeaponMedigunData", "m_flChargeLevel");
 
                     auto charge_level = *DataTableHelper::get_property_value_from_object<float>(
                         weapon->GetDataTableBasePtr(), *charge_level_property);
@@ -172,8 +172,9 @@ Server::Player Server::create_player_from_user_id(uint8_t user_id)
 
     m_plugin.interfaces().engine_client().GetPlayerInfo(entity_index, &player_info);
 
-    auto& base_entity_team_number_property = *DataTableHelper::get_property_from_table_by_name_including_bases(
-        *m_plugin.network_cache().find_receive_table_by_name("DT_BaseEntity"), "m_iTeamNum");
+    auto& base_entity_team_number_property =
+        *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseEntity", "m_iTeamNum");
+
     auto entity = m_plugin.interfaces().client_entity_list().GetClientEntity(entity_index);
     auto team = *DataTableHelper::get_property_value_from_object<int>(entity, base_entity_team_number_property);
 

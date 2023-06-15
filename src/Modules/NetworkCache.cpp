@@ -25,6 +25,29 @@ NetworkCache::NetworkCache(Plugin& plugin)
                   m_cached_receive_tables_by_name.size());
 }
 
+RecvProp* NetworkCache::find_receive_property_by_table_name_and_property_name(std::string_view table_name,
+                                                                              std::string_view property_name)
+{
+    TableNameAndPropertyName table_name_and_property_name{.table_name = table_name, .property_name = property_name};
+
+    if (auto it = m_cached_receive_properties_by_table_and_property_name.find(table_name_and_property_name);
+        it != m_cached_receive_properties_by_table_and_property_name.end())
+        return it->second;
+
+    if (auto receive_table = find_receive_table_by_name(table_name))
+    {
+        if (auto receive_property = DataTableHelper::get_property_from_table_by_name(*receive_table, property_name))
+        {
+            m_cached_receive_properties_by_table_and_property_name.insert(
+                {table_name_and_property_name, receive_property});
+
+            return receive_property;
+        }
+    }
+
+    return nullptr;
+}
+
 void NetworkCache::insert_client_class_and_receive_table_into_cache(ClientClass& client_class)
 {
     m_cached_client_classes_by_name.insert({client_class.m_pNetworkName, &client_class});

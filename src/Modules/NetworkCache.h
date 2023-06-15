@@ -5,8 +5,9 @@
 #include <string_view>
 
 class ClientClass;
-class RecvTable;
 class IBaseClientDLL;
+class RecvProp;
+class RecvTable;
 
 namespace Flask::Modules
 {
@@ -31,9 +32,26 @@ public:
         return nullptr;
     }
 
+    RecvProp* find_receive_property_by_table_name_and_property_name(std::string_view table_name,
+                                                                    std::string_view property_name);
+
 private:
     std::map<std::string_view, ClientClass*, std::less<>> m_cached_client_classes_by_name;
     std::map<std::string_view, RecvTable*, std::less<>> m_cached_receive_tables_by_name;
+
+    struct TableNameAndPropertyName
+    {
+        std::string_view table_name;
+        std::string_view property_name;
+
+        bool operator<(const TableNameAndPropertyName& other) const
+        {
+            return table_name < other.table_name ||
+                   (table_name == other.table_name && property_name < other.property_name);
+        }
+    };
+
+    std::map<TableNameAndPropertyName, RecvProp*> m_cached_receive_properties_by_table_and_property_name;
 
 #ifdef POSIX
     typedef __attribute__((cdecl)) ClientClass* (*IBaseClientDLL017GetClientClassesFn)(const IBaseClientDLL*);
