@@ -120,6 +120,16 @@ public:
         static constexpr std::string_view s_event_name = "game_rules_update";
     };
 
+    struct TeamUpdateEvent
+    {
+        uint8_t team;
+        uint32_t score;
+
+        static TeamUpdateEvent from_entity(Plugin&, void*);
+
+        static constexpr std::string_view s_event_name = "team_update";
+    };
+
     struct ObserveTargetCommand
     {
         uint8_t index;
@@ -140,6 +150,7 @@ private:
     ManagedConCommand m_flask_send_user_interaction{"flask_send_user_interaction", flask_send_user_interaction};
 
     std::set<uint32_t> m_pending_timer_updates;
+    std::set<uint32_t> m_pending_team_updates;
     std::optional<GameRulesUpdateEvent> m_pending_game_rules_update;
 
     GameRulesUpdateEvent& get_or_create_pending_game_rules_update()
@@ -170,6 +181,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, health, damage, crit, mini_crit,
                                    weapon_id);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TeamUpdateEvent, team, score);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ExecuteCommandCommand, value);

@@ -85,6 +85,13 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimerEndTime"),
         on_timer_updated);
 
+    auto on_team_updated = [this](auto data, auto, auto) { m_pending_team_updates.insert(data->m_ObjectID); };
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iTeamNum"), on_team_updated);
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iScore"), on_team_updated);
+
     accept();
 }
 
@@ -114,6 +121,11 @@ Server::~Server()
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_bTimerPaused"));
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimerEndTime"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iTeamNum"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iScore"));
 
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
@@ -162,6 +174,21 @@ void Server::update(Badge<Flask::Plugin>)
 
         m_pending_timer_updates.clear();
     }
+
+    if (!m_pending_team_updates.empty())
+    {
+        for (auto entity_id : m_pending_team_updates)
+        {
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+            // Sanity check: Weird demo bugs with demo_gototick have shown entities may not exist when expected...
+            if (!entity)
+                continue;
+
+            send(TeamUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
+        }
+
+        m_pending_team_updates.clear();
+    }
 }
 
 void Server::level_init_post_entity(Badge<Plugin>)
@@ -182,6 +209,22 @@ Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, v
                 *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_end_time_property),
             .is_paused = static_cast<bool>(
                 *DataTableHelper::get_property_value_from_object<int>(timer, *team_round_timer_paused_property))};
+}
+
+Server::TeamUpdateEvent Server::TeamUpdateEvent::from_entity(Flask::Plugin& plugin, void* team)
+{
+    auto team_team_num_property =
+        plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_Team", "m_iTeamNum");
+
+    auto team_score_property =
+        plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_Team", "m_iScore");
+
+    return {
+        .team =
+            static_cast<uint8_t>(*DataTableHelper::get_property_value_from_object<int>(team, *team_team_num_property)),
+        .score =
+            static_cast<uint32_t>(*DataTableHelper::get_property_value_from_object<int>(team, *team_score_property)),
+    };
 }
 
 void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json& message)
@@ -248,9 +291,12 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
     {
         if (auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(i))
         {
-            if (entity->GetClientClass()->GetName() == "CTeamRoundTimer"sv && i != red_koth_timer_entity_index &&
+            auto client_class_name = entity->GetClientClass()->GetName();
+            if (client_class_name == "CTeamRoundTimer"sv && i != red_koth_timer_entity_index &&
                 i != blue_koth_timer_entity_index)
                 client.send(TimerUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
+            else if (client_class_name == "CTFTeam"sv)
+                client.send(TeamUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
         }
     }
 
