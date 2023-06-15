@@ -1,5 +1,6 @@
 #include "Flask.h"
 #include "Modules/Camera.h"
+#include "Modules/DataTableChangeListener.h"
 #include "Modules/EntityListener.h"
 #include "Modules/GameSystem.h"
 #include "Modules/HideRespawnRoomVisualizers.h"
@@ -54,6 +55,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         m_hide_respawn_room_visualizer = std::make_unique<Modules::HideRespawnRoomVisualizers>(*this);
         m_game_system = std::make_unique<Modules::GameSystem>(*this);
         m_camera = std::make_unique<Modules::Camera>(*this);
+        m_data_table_change_listener = std::make_unique<Modules::DataTableChangeListener>();
         m_server = std::make_unique<Modules::Server>(*this);
     }
     catch (const std::exception& ex)
@@ -75,6 +77,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 void Plugin::Unload()
 {
     m_server.reset();
+    m_data_table_change_listener.reset();
     m_camera.reset();
     m_game_system.reset();
     m_hide_respawn_room_visualizer.reset();

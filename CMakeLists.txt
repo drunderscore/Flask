@@ -25,13 +25,14 @@ add_library(Flask SHARED
         src/Network/WebsocketServer.cpp
 
         src/Modules/Camera.cpp
+        src/Modules/DataTableChangeListener.cpp
         src/Modules/EntityListener.cpp
         src/Modules/GameSystem.cpp
         src/Modules/HideRespawnRoomVisualizers.cpp
         src/Modules/Interfaces.cpp
         src/Modules/NetworkCache.cpp
         src/Modules/Server.cpp
-        )
+)
 
 # FIXME: Rebasing/merging alliedmodders/hl2sdk into drunderscore/hl2sdk got us the VScript changes, but it also got us
 #        some changes to utlvector.h. These changes do not compile on Linux without -fpermissive.
@@ -43,7 +44,7 @@ endif ()
 
 target_compile_definitions(Flask PRIVATE
         CLIENT_DLL
-        )
+)
 
 target_include_directories(Flask SYSTEM PRIVATE
         json/single_include
@@ -58,7 +59,7 @@ target_include_directories(Flask SYSTEM PRIVATE
         ${HL2SDK_PATH}/public/game/server
 
         JMP/src
-        )
+)
 
 
 # Technically not Linux, but no one is building this on APPLE
@@ -71,7 +72,7 @@ if (UNIX)
             GNUC
             _LINUX
             POSIX
-            )
+    )
 
     # FIXME: So, Source uses tcmalloc by Google to allocate memory. This means calls to malloc() and free() go through
     #        tcmalloc. However, tcmalloc (in this implementation) does _not_ implement or override aligned_alloc(), so

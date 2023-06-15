@@ -61,6 +61,7 @@ public:
     Modules::GameSystem& game_system() { return *m_game_system; }
     Modules::Camera& camera() { return *m_camera; }
     Modules::Server& server() { return *m_server; }
+    Modules::DataTableChangeListener& data_table_change_listener() { return *m_data_table_change_listener; }
 
 private:
     std::unique_ptr<boost::asio::io_context> m_io_context;
@@ -73,6 +74,7 @@ private:
     std::unique_ptr<Modules::GameSystem> m_game_system;
     std::unique_ptr<Modules::Camera> m_camera;
     std::unique_ptr<Modules::Server> m_server;
+    std::unique_ptr<Modules::DataTableChangeListener> m_data_table_change_listener;
 
     std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
 };
