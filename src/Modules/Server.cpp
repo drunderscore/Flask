@@ -439,8 +439,9 @@ Server::Player Server::create_player_from_user_id(uint8_t user_id)
     auto& base_entity_team_number_property =
         *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseEntity", "m_iTeamNum");
 
-    auto entity = m_plugin.interfaces().client_entity_list().GetClientEntity(entity_index);
-    auto team = *DataTableHelper::get_property_value_from_object<int>(entity, base_entity_team_number_property);
+    auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_index);
+    auto team = *DataTableHelper::get_property_value_from_object<int>(entity->GetDataTableBasePtr(),
+                                                                      base_entity_team_number_property);
 
     return {user_id, entity_index, player_info.name, static_cast<uint8_t>(team)};
 }
