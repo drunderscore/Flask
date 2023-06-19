@@ -3,7 +3,10 @@
 #include "../Badge.h"
 #include "Forward.h"
 #undef clamp
-#include <boost/beast.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/beast/core/flat_buffer.hpp>
+#include <boost/beast/core/tcp_stream.hpp>
+#include <boost/beast/websocket/stream.hpp>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <queue>
