@@ -25,7 +25,7 @@ protected:
     void Shutdown() override {}
     void LevelInitPreEntity() override {}
     void LevelInitPostEntity() override;
-    void LevelShutdownPreEntity() override {}
+    void LevelShutdownPreEntity() override;
     void LevelShutdownPostEntity() override {}
     void OnSave() override {}
     void OnRestore() override {}

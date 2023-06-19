@@ -196,6 +196,13 @@ void Server::level_init_post_entity(Badge<Plugin>)
     send<TickCountUpdateEvent>({.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
 }
 
+void Server::level_shutdown_pre_entity(Badge<Flask::Plugin>)
+{
+    m_pending_game_rules_update.reset();
+    m_pending_timer_updates.clear();
+    m_pending_team_updates.clear();
+}
+
 Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, void* timer)
 {
     auto team_round_timer_paused_property =

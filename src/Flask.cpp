@@ -105,4 +105,5 @@ void Plugin::update(Badge<Modules::GameSystem>)
 }
 
 void Plugin::level_init_post_entity(Badge<Modules::GameSystem>) { m_server->level_init_post_entity({}); }
+void Plugin::level_shutdown_pre_entity(Badge<Modules::GameSystem>) { m_server->level_shutdown_pre_entity({}); }
 }

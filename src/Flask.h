@@ -46,6 +46,7 @@ public:
 
     void update(Badge<Modules::GameSystem>);
     void level_init_post_entity(Badge<Modules::GameSystem>);
+    void level_shutdown_pre_entity(Badge<Modules::GameSystem>);
 
     std::span<uint8_t> client_library_bytes() const { return m_client_library_bytes; }
 

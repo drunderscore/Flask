@@ -22,6 +22,7 @@ public:
     void FireGameEvent(IGameEvent*) override;
 
     void level_init_post_entity(Badge<Plugin>);
+    void level_shutdown_pre_entity(Badge<Plugin>);
     void update(Badge<Plugin>);
 
     struct Player
