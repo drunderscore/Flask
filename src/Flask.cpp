@@ -96,10 +96,16 @@ void Plugin::Unload()
 
 void Plugin::update(Badge<Modules::GameSystem>)
 {
-    boost::system::error_code error_code;
-
-    if (m_io_context->poll(error_code); error_code)
-        spdlog::error("Got error whilst polling Boost::Asio: {}", error_code.to_string());
+    try
+    {
+        m_io_context->poll();
+    }
+    catch (const std::exception& exception)
+    {
+        // If you're hitting this, something has gone terribly wrong, and whatever the issue may be is NOT being
+        // resolved here.
+        spdlog::error("Caught unexpected error whilst polling IO context: {}", exception.what());
+    }
 
     m_server->update({});
 }
