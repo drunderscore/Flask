@@ -21,6 +21,7 @@ public:
     void FireGameEvent(IGameEvent*) override;
 
     void level_init_post_entity(Badge<Plugin>);
+    void update(Badge<Plugin>);
 
     struct Player
     {
@@ -91,6 +92,21 @@ public:
         static constexpr std::string_view s_event_name = "tick_count";
     };
 
+    struct GameRulesUpdateEvent
+    {
+        // Teamplay round-based game rules
+        std::optional<uint32_t> round_state;
+        std::optional<bool> in_setup;
+        std::optional<float> map_reset_time;
+        std::optional<float> countdown_time;
+
+        // TF Game rules
+        std::optional<uint32_t> game_type;
+        std::optional<bool> playing_koth;
+
+        static constexpr std::string_view s_event_name = "game_rules_update";
+    };
+
     struct ObserveTargetCommand
     {
         uint8_t index;
@@ -110,6 +126,18 @@ private:
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
     ManagedConCommand m_flask_send_user_interaction{"flask_send_user_interaction", flask_send_user_interaction};
 
+    std::optional<GameRulesUpdateEvent> m_pending_game_rules_update;
+
+    GameRulesUpdateEvent& get_or_create_pending_game_rules_update()
+    {
+        if (!m_pending_game_rules_update)
+            m_pending_game_rules_update = {GameRulesUpdateEvent{}};
+
+        return *m_pending_game_rules_update;
+    }
+
+    void* m_game_rules{};
+
     Player create_player_from_user_id(uint8_t);
 
     static void flask_network_client_list(const CCommand&);
@@ -118,6 +146,8 @@ private:
 
 // This structure has an optional in it, which nlohammn JSON still can't handle...
 void to_json(nlohmann::json& json, const Server::PlayerDeathEvent&);
+void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent&);
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, team);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetEvent, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);

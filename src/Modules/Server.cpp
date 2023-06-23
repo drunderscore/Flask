@@ -3,6 +3,7 @@
 #include "../Flask.h"
 #include "../Structures/C_HLTVCamera.h"
 #include "Camera.h"
+#include "DataTableChangeListener.h"
 #include "Interfaces.h"
 #include "NetworkCache.h"
 #include <boost/lexical_cast.hpp>
@@ -19,15 +20,98 @@ namespace Flask::Modules
 {
 Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), m_plugin(plugin)
 {
-    plugin.interfaces().game_event_manager().AddListener(this, "hltv_changed_target", false);
-    plugin.interfaces().game_event_manager().AddListener(this, "player_death", false);
-    plugin.interfaces().game_event_manager().AddListener(this, "object_destroyed", false);
-    plugin.interfaces().game_event_manager().AddListener(this, "player_hurt", true);
+    auto& game_event_manager = plugin.interfaces().game_event_manager();
+    auto& network_cache = plugin.network_cache();
+    auto& data_table_change_listener = plugin.data_table_change_listener();
+
+    game_event_manager.AddListener(this, "hltv_changed_target", false);
+    game_event_manager.AddListener(this, "player_death", false);
+    game_event_manager.AddListener(this, "object_destroyed", false);
+    game_event_manager.AddListener(this, "player_hurt", true);
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TeamplayRoundBasedRules", "m_iRoundState"),
+                                            [this](auto, auto, auto output_variable) {
+                                                get_or_create_pending_game_rules_update().round_state =
+                                                    *static_cast<int*>(output_variable);
+                                            });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TeamplayRoundBasedRules", "m_bInSetup"),
+                                            [this](auto, auto, auto output_variable) {
+                                                get_or_create_pending_game_rules_update().in_setup =
+                                                    static_cast<bool>(*static_cast<int*>(output_variable));
+                                            });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TeamplayRoundBasedRules", "m_flMapResetTime"),
+                                            [this](auto, auto, auto output_variable) {
+                                                get_or_create_pending_game_rules_update().map_reset_time =
+                                                    *static_cast<float*>(output_variable);
+                                            });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TeamplayRoundBasedRules", "m_flCountdownTime"),
+                                            [this](auto, auto, auto output_variable) {
+                                                get_or_create_pending_game_rules_update().countdown_time =
+                                                    *static_cast<float*>(output_variable);
+                                            });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_nGameType"),
+        [this](auto, auto, auto output_variable) {
+            get_or_create_pending_game_rules_update().game_type = *static_cast<int*>(output_variable);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_bPlayingKoth"),
+        [this](auto, auto, auto output_variable) {
+            get_or_create_pending_game_rules_update().playing_koth =
+                static_cast<bool>(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TFGameRulesProxy", "tf_gamerules_data"),
+                                            [this](auto, auto output_variable, auto, auto) {
+                                                m_game_rules = !output_variable ? nullptr : *output_variable;
+                                            });
 
     accept();
 }
 
-Server::~Server() { m_plugin.interfaces().game_event_manager().RemoveListener(this); }
+Server::~Server()
+{
+    auto& network_cache = m_plugin.network_cache();
+    auto& data_table_change_listener = m_plugin.data_table_change_listener();
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TeamplayRoundBasedRules", "m_iRoundState"));
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TeamplayRoundBasedRules", "m_bInSetup"));
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TeamplayRoundBasedRules", "m_flMapResetTime"));
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TeamplayRoundBasedRules", "m_flCountdownTime"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_nGameType"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_bPlayingKoth"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFGameRulesProxy", "tf_gamerules_data"));
+
+    m_plugin.interfaces().game_event_manager().RemoveListener(this);
+}
+
+void Server::update(Badge<Flask::Plugin>)
+{
+    if (m_pending_game_rules_update)
+    {
+        send(*m_pending_game_rules_update);
+        m_pending_game_rules_update = {};
+    }
+}
 
 void Server::level_init_post_entity(Badge<Plugin>)
 {
@@ -54,6 +138,8 @@ void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view
 
 void Server::on_client_connected(Badge<Network::Client>, Network::Client& client)
 {
+    auto& network_cache = m_plugin.network_cache();
+
     spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.remote_endpoint()));
 
     client.send<ObserveTargetEvent>({static_cast<uint8_t>(m_plugin.camera().camera().target_1)});
@@ -61,6 +147,29 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
     // FIXME: What about pauses? Probably need a separate event for that.
     client.send<TickCountUpdateEvent>(
         {.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
+
+    if (m_game_rules)
+    {
+        client.send<GameRulesUpdateEvent>(
+            {.round_state = *DataTableHelper::get_property_value_from_object<int>(
+                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                   "DT_TeamplayRoundBasedRules", "m_iRoundState")),
+             .in_setup = static_cast<bool>(*DataTableHelper::get_property_value_from_object<int>(
+                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                   "DT_TeamplayRoundBasedRules", "m_bInSetup"))),
+             .map_reset_time = *DataTableHelper::get_property_value_from_object<float>(
+                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                   "DT_TeamplayRoundBasedRules", "m_flMapResetTime")),
+             .countdown_time = *DataTableHelper::get_property_value_from_object<float>(
+                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                   "DT_TeamplayRoundBasedRules", "m_flCountdownTime")),
+             .game_type = *DataTableHelper::get_property_value_from_object<int>(
+                 m_game_rules,
+                 *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_nGameType")),
+             .playing_koth = static_cast<bool>(*DataTableHelper::get_property_value_from_object<int>(
+                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                   "DT_TFGameRules", "m_bPlayingKoth")))});
+    }
 }
 
 void Server::FireGameEvent(IGameEvent* event)
@@ -199,5 +308,22 @@ void to_json(nlohmann::json& json, const Server::PlayerDeathEvent& player_death_
 
     if (player_death_event.assister.has_value())
         json["assister"] = *player_death_event.assister;
+}
+
+void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent& game_rules_update_event)
+{
+    if (game_rules_update_event.round_state)
+        json["round_state"] = *game_rules_update_event.round_state;
+    if (game_rules_update_event.in_setup)
+        json["in_setup"] = *game_rules_update_event.in_setup;
+    if (game_rules_update_event.map_reset_time)
+        json["map_reset_time"] = *game_rules_update_event.map_reset_time;
+    if (game_rules_update_event.countdown_time)
+        json["countdown_time"] = *game_rules_update_event.countdown_time;
+
+    if (game_rules_update_event.game_type)
+        json["game_type"] = *game_rules_update_event.game_type;
+    if (game_rules_update_event.playing_koth)
+        json["playing_koth"] = *game_rules_update_event.playing_koth;
 }
 }
