@@ -76,6 +76,15 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                                 m_game_rules = !output_variable ? nullptr : *output_variable;
                                             });
 
+    auto on_timer_updated = [this](auto data, auto, auto) { m_pending_timer_updates.insert(data->m_ObjectID); };
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_bTimerPaused"),
+        on_timer_updated);
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimerEndTime"),
+        on_timer_updated);
+
     accept();
 }
 
@@ -101,6 +110,11 @@ Server::~Server()
     data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
         "DT_TFGameRulesProxy", "tf_gamerules_data"));
 
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_bTimerPaused"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimerEndTime"));
+
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
 
@@ -111,11 +125,63 @@ void Server::update(Badge<Flask::Plugin>)
         send(*m_pending_game_rules_update);
         m_pending_game_rules_update = {};
     }
+
+    if (!m_pending_timer_updates.empty())
+    {
+        for (auto entity_id : m_pending_timer_updates)
+        {
+            auto timer = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+            // Sanity check: Weird demo bugs with demo_gototick have shown entities may not exist when expected...
+            if (!timer)
+                continue;
+
+            auto event = TimerUpdateEvent::from_entity(m_plugin, timer->GetDataTableBasePtr());
+
+            if (m_game_rules)
+            {
+                auto red_koth_timer_handle_property =
+                    m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFGameRules",
+                                                                                                   "m_hRedKothTimer");
+                auto blue_koth_timer_handle_property =
+                    m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFGameRules",
+                                                                                                   "m_hBlueKothTimer");
+
+                auto red_koth_timer_handle = CBaseHandle(*DataTableHelper::get_property_value_from_object<int>(
+                    m_game_rules, *red_koth_timer_handle_property));
+                auto blue_koth_timer_handle = CBaseHandle(*DataTableHelper::get_property_value_from_object<int>(
+                    m_game_rules, *blue_koth_timer_handle_property));
+
+                if (entity_id == red_koth_timer_handle.GetEntryIndex())
+                    event.team = 2;
+                else if (entity_id == blue_koth_timer_handle.GetEntryIndex())
+                    event.team = 3;
+            }
+
+            send(event);
+        }
+
+        m_pending_timer_updates.clear();
+    }
 }
 
 void Server::level_init_post_entity(Badge<Plugin>)
 {
     send<TickCountUpdateEvent>({.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
+}
+
+Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, void* timer)
+{
+    auto team_round_timer_paused_property =
+        plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
+                                                                                     "m_bTimerPaused");
+    auto team_round_timer_end_time_property =
+        plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
+                                                                                     "m_flTimerEndTime");
+
+    return {.end_time =
+                *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_end_time_property),
+            .is_paused = static_cast<bool>(
+                *DataTableHelper::get_property_value_from_object<int>(timer, *team_round_timer_paused_property))};
 }
 
 void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json& message)
@@ -147,6 +213,46 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
     // FIXME: What about pauses? Probably need a separate event for that.
     client.send<TickCountUpdateEvent>(
         {.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
+
+    std::optional<uint32_t> red_koth_timer_entity_index;
+    std::optional<uint32_t> blue_koth_timer_entity_index;
+
+    if (m_game_rules)
+    {
+        auto send_event_for_koth_timer_if_exists =
+            [this, &network_cache, &client](std::string_view property_name, uint8_t team) -> std::optional<uint32_t> {
+            auto koth_timer_handle_property =
+                network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", property_name);
+
+            auto koth_timer_handle = CBaseHandle(
+                *DataTableHelper::get_property_value_from_object<int>(m_game_rules, *koth_timer_handle_property));
+
+            if (auto koth_timer =
+                    m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(koth_timer_handle))
+            {
+                auto event = TimerUpdateEvent::from_entity(m_plugin, koth_timer->GetDataTableBasePtr());
+                event.team = team;
+                client.send(event);
+
+                return koth_timer_handle.GetEntryIndex();
+            }
+
+            return {};
+        };
+
+        red_koth_timer_entity_index = send_event_for_koth_timer_if_exists("m_hRedKothTimer", 2);
+        blue_koth_timer_entity_index = send_event_for_koth_timer_if_exists("m_hBlueKothTimer", 3);
+    }
+
+    for (auto i = 0; i < m_plugin.interfaces().client_entity_list().GetHighestEntityIndex(); i++)
+    {
+        if (auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(i))
+        {
+            if (entity->GetClientClass()->GetName() == "CTeamRoundTimer"sv && i != red_koth_timer_entity_index &&
+                i != blue_koth_timer_entity_index)
+                client.send(TimerUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
+        }
+    }
 
     if (m_game_rules)
     {
@@ -308,6 +414,17 @@ void to_json(nlohmann::json& json, const Server::PlayerDeathEvent& player_death_
 
     if (player_death_event.assister.has_value())
         json["assister"] = *player_death_event.assister;
+}
+
+void to_json(nlohmann::json& json, const Server::TimerUpdateEvent& timer_update_event)
+{
+    json = {
+        {"end_time", timer_update_event.end_time},
+        {"is_paused", timer_update_event.is_paused},
+    };
+
+    if (timer_update_event.team.has_value())
+        json["team"] = *timer_update_event.team;
 }
 
 void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent& game_rules_update_event)

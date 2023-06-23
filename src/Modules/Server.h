@@ -5,6 +5,7 @@
 #include "../Network/WebsocketServer.h"
 #include "Forward.h"
 #include <igameevents.h>
+#include <set>
 
 namespace Flask::Modules
 {
@@ -92,6 +93,18 @@ public:
         static constexpr std::string_view s_event_name = "tick_count";
     };
 
+    struct TimerUpdateEvent
+    {
+        // If no team, then this is the round timer.
+        std::optional<uint8_t> team;
+        float end_time;
+        bool is_paused;
+
+        static TimerUpdateEvent from_entity(Plugin&, void*);
+
+        static constexpr std::string_view s_event_name = "timer_update";
+    };
+
     struct GameRulesUpdateEvent
     {
         // Teamplay round-based game rules
@@ -126,6 +139,7 @@ private:
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
     ManagedConCommand m_flask_send_user_interaction{"flask_send_user_interaction", flask_send_user_interaction};
 
+    std::set<uint32_t> m_pending_timer_updates;
     std::optional<GameRulesUpdateEvent> m_pending_game_rules_update;
 
     GameRulesUpdateEvent& get_or_create_pending_game_rules_update()
@@ -146,6 +160,7 @@ private:
 
 // This structure has an optional in it, which nlohammn JSON still can't handle...
 void to_json(nlohmann::json& json, const Server::PlayerDeathEvent&);
+void to_json(nlohmann::json& json, const Server::TimerUpdateEvent&);
 void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent&);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, team);
