@@ -2,6 +2,7 @@
 
 namespace Flask::Modules
 {
+class AdditionalPointsOfInterest;
 class Camera;
 class DataTableChangeListener;
 class EntityEnumerator;

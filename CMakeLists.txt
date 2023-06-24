@@ -24,6 +24,7 @@ add_library(Flask SHARED
         src/Network/Client.cpp
         src/Network/WebsocketServer.cpp
 
+        src/Modules/AdditionalPointsOfInterest.cpp
         src/Modules/Camera.cpp
         src/Modules/DataTableChangeListener.cpp
         src/Modules/EntityEnumerator.cpp

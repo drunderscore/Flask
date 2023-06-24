@@ -1,4 +1,5 @@
 #include "Flask.h"
+#include "Modules/AdditionalPointsOfInterest.h"
 #include "Modules/Camera.h"
 #include "Modules/DataTableChangeListener.h"
 #include "Modules/EntityEnumerator.h"
@@ -58,6 +59,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         m_camera = std::make_unique<Modules::Camera>(*this);
         m_data_table_change_listener = std::make_unique<Modules::DataTableChangeListener>();
         m_server = std::make_unique<Modules::Server>(*this);
+        m_additional_points_of_interest = std::make_unique<Modules::AdditionalPointsOfInterest>(*this);
         m_entity_enumerator = std::make_unique<Modules::EntityEnumerator>(*this);
     }
     catch (const std::exception& ex)
@@ -79,6 +81,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 void Plugin::Unload()
 {
     m_entity_enumerator.reset();
+    m_additional_points_of_interest.reset();
     m_server.reset();
     m_data_table_change_listener.reset();
     m_camera.reset();

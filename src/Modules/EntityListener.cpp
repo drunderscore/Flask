@@ -1,5 +1,6 @@
 #include "EntityListener.h"
 #include "../Flask.h"
+#include "AdditionalPointsOfInterest.h"
 #include "HideRespawnRoomVisualizers.h"
 #include "Interfaces.h"
 #include <icliententity.h>
