@@ -9,6 +9,7 @@ class IClientEntityList;
 class IEngineTool;
 class IGameEventManager2;
 class ISpatialPartition;
+class IVDebugOverlay;
 class IVEngineClient;
 
 namespace Flask::Modules
@@ -25,6 +26,7 @@ public:
     IBaseClientDLL& base_client_dll() { return *m_base_client_dll; }
     IClientEntityList& client_entity_list() { return *m_client_entity_list; }
     IVEngineClient& engine_client() { return *m_engine_client; }
+    IVDebugOverlay& debug_overlay() { return *m_debug_overlay; }
     ISpatialPartition& spatial_partition() { return *m_spatial_partition; }
 
 private:
@@ -34,6 +36,7 @@ private:
     IBaseClientDLL* m_base_client_dll{};
     IClientEntityList* m_client_entity_list{};
     IVEngineClient* m_engine_client{};
+    IVDebugOverlay* m_debug_overlay{};
     ISpatialPartition* m_spatial_partition{};
 
     template<typename T>

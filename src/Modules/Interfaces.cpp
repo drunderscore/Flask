@@ -3,6 +3,7 @@
 #include <icliententitylist.h>
 #include <igameevents.h>
 #include <ispatialpartition.h>
+#include <ivdebugoverlay.h>
 #include <toolframework/ienginetool.h>
 
 namespace Flask::Modules
@@ -23,6 +24,7 @@ Interfaces::Interfaces(CreateInterfaceFn interface_factory, CreateInterfaceFn ga
     try_load_interface(m_client_entity_list, VCLIENTENTITYLIST_INTERFACE_VERSION, m_client_interface_factory_function);
 
     try_load_interface(m_engine_client, VENGINE_CLIENT_INTERFACE_VERSION, interface_factory);
+    try_load_interface(m_debug_overlay, VDEBUG_OVERLAY_INTERFACE_VERSION, interface_factory);
     try_load_interface(m_spatial_partition, INTERFACEVERSION_SPATIALPARTITION, interface_factory);
 }
 }
