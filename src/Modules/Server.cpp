@@ -4,11 +4,13 @@
 #include "../Structures/C_HLTVCamera.h"
 #include "Camera.h"
 #include "DataTableChangeListener.h"
+#include "EntityEnumerator.h"
 #include "Interfaces.h"
 #include "NetworkCache.h"
 #include <boost/lexical_cast.hpp>
 #include <cdll_int.h>
 #include <client_class.h>
+#include <icliententity.h>
 #include <icliententitylist.h>
 #include <iclientnetworkable.h>
 #include <spdlog/spdlog.h>
@@ -294,18 +296,18 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
         blue_koth_timer_entity_index = send_event_for_koth_timer_if_exists("m_hBlueKothTimer", 3);
     }
 
-    for (auto i = 0; i < m_plugin.interfaces().client_entity_list().GetHighestEntityIndex(); i++)
-    {
-        if (auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(i))
-        {
+    m_plugin.entity_enumerator().all(
+        [this, &client, &red_koth_timer_entity_index, &blue_koth_timer_entity_index](auto entity) {
             auto client_class_name = entity->GetClientClass()->GetName();
-            if (client_class_name == "CTeamRoundTimer"sv && i != red_koth_timer_entity_index &&
-                i != blue_koth_timer_entity_index)
+
+            if (client_class_name == "CTeamRoundTimer"sv && entity->entindex() != red_koth_timer_entity_index &&
+                entity->entindex() != blue_koth_timer_entity_index)
                 client.send(TimerUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
             else if (client_class_name == "CTFTeam"sv)
                 client.send(TeamUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
-        }
-    }
+
+            return EntityEnumerator::IterationDecision::Continue;
+        });
 
     if (m_game_rules)
     {
