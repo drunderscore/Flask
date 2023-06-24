@@ -8,6 +8,7 @@ class IBaseClientDLL;
 class IClientEntityList;
 class IEngineTool;
 class IGameEventManager2;
+class ISpatialPartition;
 class IVEngineClient;
 
 namespace Flask::Modules
@@ -24,6 +25,7 @@ public:
     IBaseClientDLL& base_client_dll() { return *m_base_client_dll; }
     IClientEntityList& client_entity_list() { return *m_client_entity_list; }
     IVEngineClient& engine_client() { return *m_engine_client; }
+    ISpatialPartition& spatial_partition() { return *m_spatial_partition; }
 
 private:
     IEngineTool* m_engine_tool{};
@@ -32,6 +34,7 @@ private:
     IBaseClientDLL* m_base_client_dll{};
     IClientEntityList* m_client_entity_list{};
     IVEngineClient* m_engine_client{};
+    ISpatialPartition* m_spatial_partition{};
 
     template<typename T>
     static void try_load_interface(T*& destination, const char* interface_version,
