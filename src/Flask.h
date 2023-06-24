@@ -64,6 +64,7 @@ public:
     Modules::Camera& camera() { return *m_camera; }
     Modules::Server& server() { return *m_server; }
     Modules::DataTableChangeListener& data_table_change_listener() { return *m_data_table_change_listener; }
+    Modules::EntityEnumerator& entity_enumerator() { return *m_entity_enumerator; }
 
 private:
     std::unique_ptr<boost::asio::io_context> m_io_context;
@@ -77,6 +78,7 @@ private:
     std::unique_ptr<Modules::Camera> m_camera;
     std::unique_ptr<Modules::Server> m_server;
     std::unique_ptr<Modules::DataTableChangeListener> m_data_table_change_listener;
+    std::unique_ptr<Modules::EntityEnumerator> m_entity_enumerator;
 
     std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
 };

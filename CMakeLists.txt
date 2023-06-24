@@ -26,6 +26,7 @@ add_library(Flask SHARED
 
         src/Modules/Camera.cpp
         src/Modules/DataTableChangeListener.cpp
+        src/Modules/EntityEnumerator.cpp
         src/Modules/EntityListener.cpp
         src/Modules/GameSystem.cpp
         src/Modules/HideRespawnRoomVisualizers.cpp
