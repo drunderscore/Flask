@@ -13,12 +13,16 @@ JMP::Signature Camera::s_call_to_hltv_camera_singleton_getter(
     "E8 ? ? ? ? 8B 8D 54 FF FF FF 89 74 24 0C 8B 95 50 FF FF FF 89 04 24 89 4C 24 08 89 54 24 04 E8 ? ? ? ? C6 85 43 FF FF FF 00"sv);
 JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
     "55 89 E5 57 56 53 83 EC 3C 8B 5D 08 8B 45 0C 8B 7B 28 39 C7 0F 84 ? ? ? ? 89 43 28"sv);
+JMP::Signature Camera::s_hltv_camera_set_mode_function(
+    "55 89 E5 57 56 53 83 EC 1C 8B 75 08 8B 45 0C 8B 7E 08 39 C7 0F 84 ? ? ? ? 89 46 08"sv);
 #else
 // Call is from CViewRender::SetUpViews
 JMP::Signature Camera::s_call_to_hltv_camera_singleton_getter(
     "E8 ? ? ? ? 8B C8 E8 ? ? ? ? E9 ? ? ? ? 8B 0D ? ? ? ? 8B 01 8B 40 20"sv);
 JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
     "55 8B EC 8B 45 08 83 EC 18 53 56 8B F1 8B 5E 28 3B D8 0F 84 ? ? ? ? 89 46 28"sv);
+JMP::Signature Camera::s_hltv_camera_set_mode_function(
+    "55 8B EC 8B 45 08 53 56 8B F1 8B 5E 08 3B D8 74 54 89 46 08 8B 0D ? ? ? ? 57 6A 00"sv);
 #endif
 
 Camera::Camera(const Plugin& plugin)
@@ -43,10 +47,19 @@ Camera::Camera(const Plugin& plugin)
     if (!(m_hltv_camera_set_primary_target_function = reinterpret_cast<C_HLTVCameraSetPrimaryTargetFn>(
               s_hltv_camera_set_primary_target_function.find_in(plugin.client_library_bytes()))))
         throw std::runtime_error("Failed to find C_HLTVCamera::SetPrimaryTarget");
+
+    if (!(m_hltv_camera_set_mode_function = reinterpret_cast<C_HLTVCameraSetModeFn>(
+              s_hltv_camera_set_mode_function.find_in(plugin.client_library_bytes()))))
+        throw std::runtime_error("Failed to find C_HLTVCamera::SetMode");
 }
 
 void Camera::set_observe_target(int index)
 {
     m_hltv_camera_set_primary_target_function(m_hltv_camera_singleton_getter(), index);
+}
+
+void Camera::set_mode(ObserveMode mode)
+{
+    m_hltv_camera_set_mode_function(m_hltv_camera_singleton_getter(), static_cast<int>(mode));
 }
 }
