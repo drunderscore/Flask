@@ -20,7 +20,7 @@ class Client
 public:
     Client(boost::beast::net::ip::tcp::socket&&, WebsocketServer&);
 
-    auto remote_endpoint() { return m_websocket.next_layer().socket().remote_endpoint(); }
+    auto initial_remote_endpoint_for_logging() const { return m_initial_endpoint_for_logging; }
 
     template<typename TEvent>
     void send(const TEvent& event)
@@ -43,5 +43,7 @@ private:
     boost::beast::websocket::stream<boost::beast::tcp_stream> m_websocket;
     boost::beast::flat_buffer m_read_buffer;
     std::queue<std::string> m_pending_messages_to_send;
+    // The initial endpoint, intended to be used for logging purposes only.
+    boost::asio::ip::tcp::endpoint m_initial_endpoint_for_logging;
 };
 }

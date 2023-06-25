@@ -258,7 +258,7 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
 {
     auto& network_cache = m_plugin.network_cache();
 
-    spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.remote_endpoint()));
+    spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.initial_remote_endpoint_for_logging()));
 
     client.send<ObserveTargetEvent>({static_cast<uint8_t>(m_plugin.camera().camera().target_1)});
 
@@ -429,7 +429,7 @@ void Server::FireGameEvent(IGameEvent* event)
 void Server::flask_network_client_list(const CCommand&)
 {
     for (auto& client : Plugin::the().server().clients())
-        spdlog::info("{}", boost::lexical_cast<std::string>(client->remote_endpoint()));
+        spdlog::info("{}", boost::lexical_cast<std::string>(client->initial_remote_endpoint_for_logging()));
 }
 
 void Server::flask_send_user_interaction(const CCommand& args)

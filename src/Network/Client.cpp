@@ -7,7 +7,8 @@
 namespace Flask::Network
 {
 Client::Client(boost::beast::net::ip::tcp::socket&& socket, WebsocketServer& server)
-    : m_websocket(std::move(socket)), m_server(server)
+    : m_websocket(std::move(socket)), m_server(server),
+      m_initial_endpoint_for_logging(m_websocket.next_layer().socket().remote_endpoint())
 {
     m_websocket.async_accept([this](auto error) {
         if (error == boost::asio::error::operation_aborted)
@@ -94,7 +95,8 @@ void Client::send(const nlohmann::json& message)
 
 void Client::misbehave(std::string_view reason)
 {
-    spdlog::error("Client {} misbehaved: {}", boost::lexical_cast<std::string>(remote_endpoint()), reason);
+    spdlog::error("Client {} misbehaved: {}", boost::lexical_cast<std::string>(initial_remote_endpoint_for_logging()),
+                  reason);
 
     m_websocket.async_close(boost::beast::websocket::close_reason("Client misbehaved"),
                             [this](auto error) { m_server.did_client_die({}, *this); });
