@@ -14,6 +14,7 @@
 #include <icliententitylist.h>
 #include <iclientnetworkable.h>
 #include <spdlog/spdlog.h>
+#include <steam/steamclientpublic.h>
 #include <toolframework/ienginetool.h>
 
 using namespace std::string_view_literals;
@@ -30,6 +31,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
     game_event_manager.AddListener(this, "player_death", false);
     game_event_manager.AddListener(this, "object_destroyed", false);
     game_event_manager.AddListener(this, "player_hurt", true);
+    game_event_manager.AddListener(this, "player_info", false);
 
     data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
                                                 "DT_TeamplayRoundBasedRules", "m_iRoundState"),
@@ -93,6 +95,99 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
     data_table_change_listener.add_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iScore"), on_team_updated);
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseEntity", "m_iTeamNum"),
+        [this](auto data, auto, auto output_variable) {
+            // We can get the entity here, but have to be careful what we access.
+            // It's highly likely there's more data following that hasn't been put into the structure yet.
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(data->m_ObjectID);
+
+            if (entity->GetClientClass()->GetName() != "CTFPlayer"sv)
+                return;
+
+            if (m_plugin.interfaces().engine_client().IsHLTV() &&
+                entity->entindex() == m_plugin.interfaces().engine_client().GetLocalPlayer())
+                return;
+
+            m_pending_player_updates[data->m_ObjectID].team = *static_cast<int*>(output_variable);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BasePlayer", "m_iHealth"),
+        [this](auto data, auto, auto output_variable) {
+            // We can get the entity here, but have to be careful what we access.
+            // It's highly likely there's more data following that hasn't been put into the structure yet.
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(data->m_ObjectID);
+
+            if (m_plugin.interfaces().engine_client().IsHLTV() &&
+                entity->entindex() == m_plugin.interfaces().engine_client().GetLocalPlayer())
+                return;
+
+            m_pending_player_updates[data->m_ObjectID].health = *static_cast<int*>(output_variable);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BasePlayer", "m_lifeState"),
+        [this](auto data, auto, auto output_variable) {
+            // We can get the entity here, but have to be careful what we access.
+            // It's highly likely there's more data following that hasn't been put into the structure yet.
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(data->m_ObjectID);
+
+            if (m_plugin.interfaces().engine_client().IsHLTV() &&
+                entity->entindex() == m_plugin.interfaces().engine_client().GetLocalPlayer())
+                return;
+
+            m_pending_player_updates[data->m_ObjectID].life_state = *static_cast<uint8_t*>(output_variable);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerClassShared", "m_iClass"),
+        [this](auto data, auto, auto output_variable) {
+            // We can get the entity here, but have to be careful what we access.
+            // It's highly likely there's more data following that hasn't been put into the structure yet.
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(data->m_ObjectID);
+
+            if (m_plugin.interfaces().engine_client().IsHLTV() &&
+                entity->entindex() == m_plugin.interfaces().engine_client().GetLocalPlayer())
+                return;
+
+            m_pending_player_updates[data->m_ObjectID].class_ = *static_cast<int*>(output_variable);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerResource", "m_iMaxHealth"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            PreviousPlayerResource::ResourceArray<int> values;
+            auto current_values = PreviousPlayerResource::resource_span<int>(output_variable);
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_player_resource().max_health = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerResource",
+                                                                             "m_flNextRespawnTime"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            PreviousPlayerResource::ResourceArray<float> values;
+            auto current_values = PreviousPlayerResource::resource_span<float>(output_variable);
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_player_resource().next_respawn_time = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TFWeaponMedigunDataNonLocal", "m_flChargeLevel"),
+                                            [this](auto data, auto, auto output_variable) {
+                                                // We need to know the owner of this weapon to update the player
+                                                // themselves. However, we might not know just yet who m_hOwner is.
+                                                // We'll just remember for later that this medigun charge has changed,
+                                                // and update it on the player later.
+                                                m_pending_charge_level_updates[data->m_ObjectID] =
+                                                    *static_cast<float*>(output_variable);
+                                            });
+
     accept();
 }
 
@@ -128,7 +223,61 @@ Server::~Server()
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iScore"));
 
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseEntity", "m_iTeamNum"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BasePlayer", "m_iHealth"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BasePlayer", "m_lifeState"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerClassShared", "m_iClass"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerResource", "m_iMaxHealth"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerResource", "m_flNextRespawnTime"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFWeaponMedigunDataNonLocal", "m_flChargeLevel"));
+
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
+}
+
+std::optional<float> Server::get_charge_level_for_player(void* player)
+{
+    auto my_weapons_property = m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+        "DT_BaseCombatCharacter", "m_hMyWeapons");
+
+    auto my_weapons_handles = DataTableHelper::get_property_value_from_object<int>(player, *my_weapons_property);
+
+    static constexpr int max_weapons = 48;
+    for (auto i = 0; i < max_weapons; i++)
+    {
+        CBaseHandle weapon_handle(my_weapons_handles[i]);
+
+        if (weapon_handle.IsValid())
+        {
+            auto weapon = m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(weapon_handle);
+
+            if (weapon->GetClientClass()->GetName() == "CWeaponMedigun"sv)
+            {
+                // Although technically this is stored in two separate data tables at different precisions, it
+                // ends up in the same place, so let's just pick one.
+                auto charge_level_property =
+                    m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                        "DT_LocalTFWeaponMedigunData", "m_flChargeLevel");
+
+                return *DataTableHelper::get_property_value_from_object<float>(weapon->GetDataTableBasePtr(),
+                                                                               *charge_level_property);
+            }
+        }
+    }
+
+    return {};
 }
 
 void Server::update(Badge<Flask::Plugin>)
@@ -196,6 +345,128 @@ void Server::update(Badge<Flask::Plugin>)
 
         m_pending_team_updates.clear();
     }
+
+    if (m_previous_player_resource.has_value())
+    {
+        auto max_players = m_plugin.interfaces().engine_client().GetMaxClients();
+        auto all_valid_players = m_plugin.entity_enumerator().collect_all(
+            [this, max_players](auto entity) {
+                auto index = entity->entindex();
+
+                if (index > max_players)
+                    return EntityEnumerator::CollectionDecision::Stop;
+
+                if (m_plugin.interfaces().engine_client().IsHLTV() &&
+                    index == m_plugin.interfaces().engine_client().GetLocalPlayer())
+                    return EntityEnumerator::CollectionDecision::DoNotInclude;
+
+                return EntityEnumerator::CollectionDecision::Include;
+            },
+            1);
+
+        // FIXME: How can reduce this code duplication?
+        //        Some function would probably need to be templated with the resource type, so might bloat the header
+        //        includes... Additionally, how do we pass the reference to the PendingPlayerUpdate field (ex,
+        //        max_health) to the function (without stupid offsetof hacks.)
+        //        Additionally, I'd like to avoid a dumb macro. Unfortunately, it looks like the only and easiest way.
+        if (m_previous_player_resource->max_health.has_value())
+        {
+            auto& previous_resource_values = *m_previous_player_resource->max_health;
+
+            auto current_resource_values =
+                PreviousPlayerResource::resource_span(DataTableHelper::get_property_value_from_object<int>(
+                    m_player_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                           "DT_TFPlayerResource", "m_iMaxHealth")));
+
+            for (auto player : all_valid_players)
+            {
+                auto index = player->entindex();
+
+                if (previous_resource_values[index] != current_resource_values[index])
+                    m_pending_player_updates[index].max_health = current_resource_values[index];
+            }
+        }
+
+        if (m_previous_player_resource->next_respawn_time.has_value())
+        {
+            auto& previous_resource_values = *m_previous_player_resource->next_respawn_time;
+
+            auto current_resource_values =
+                PreviousPlayerResource::resource_span(DataTableHelper::get_property_value_from_object<float>(
+                    m_player_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                           "DT_TFPlayerResource", "m_flNextRespawnTime")));
+
+            for (auto player : all_valid_players)
+            {
+                auto index = player->entindex();
+
+                if (previous_resource_values[index] != current_resource_values[index])
+                    m_pending_player_updates[index].next_respawn_time = current_resource_values[index];
+            }
+        }
+
+        m_previous_player_resource.reset();
+    }
+
+    if (!m_pending_charge_level_updates.empty())
+    {
+        for (auto& [entity_id, charge_level] : m_pending_charge_level_updates)
+        {
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+
+            CBaseHandle owner_handle(*DataTableHelper::get_property_value_from_object<int>(
+                entity->GetDataTableBasePtr(),
+                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseCombatWeapon",
+                                                                                                "m_hOwner")));
+
+            if (!owner_handle.IsValid())
+            {
+                spdlog::warn("Got charge level update for {}, but it has no valid owner!", entity_id);
+                continue;
+            }
+
+            m_pending_player_updates[owner_handle.GetEntryIndex()].charge_level = charge_level;
+        }
+
+        m_pending_charge_level_updates.clear();
+    }
+
+    if (!m_pending_player_updates.empty())
+    {
+        for (auto& [entity_id, event] : m_pending_player_updates)
+        {
+            event.index = entity_id;
+            send(event);
+        }
+
+        m_pending_player_updates.clear();
+    }
+}
+
+void Server::on_add_entity(Badge<EntityListener>, IHandleEntity& handle_entity, CBaseHandle)
+{
+    auto& client_unknown = static_cast<IClientUnknown&>(handle_entity);
+
+    if (client_unknown.GetClientNetworkable()->GetClientClass()->GetName() == "CTFPlayerResource"sv)
+        m_player_resource = client_unknown.GetClientNetworkable()->GetDataTableBasePtr();
+}
+
+void Server::on_remove_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle handle)
+{
+    auto max_players = m_plugin.interfaces().engine_client().GetMaxClients();
+    auto entity_index = handle.GetEntryIndex();
+
+    // Due to the issue outlined in EntityListener::on_remove_entity, this is the only way we can identify player
+    // entities.
+    if (entity_index >= 1 && entity_index <= max_players)
+    {
+        // Ignore the HLTV player being removed (though this should never happen)
+        if (m_plugin.interfaces().engine_client().IsHLTV() &&
+            entity_index == m_plugin.interfaces().engine_client().GetLocalPlayer())
+            return;
+
+        send<PlayerRemoveEvent>({.index = static_cast<uint8_t>(entity_index)});
+    }
 }
 
 Server::TickCountUpdateEvent Server::TickCountUpdateEvent::create(Plugin& plugin)
@@ -220,8 +491,12 @@ void Server::level_shutdown_pre_entity(Badge<Plugin>)
     m_pending_game_rules_update.reset();
     m_pending_timer_updates.clear();
     m_pending_team_updates.clear();
+    m_pending_player_updates.clear();
+    m_previous_player_resource.reset();
+    m_pending_charge_level_updates.clear();
 
     m_game_rules = nullptr;
+    m_player_resource = nullptr;
     // Default to not being paused.
     m_previous_pause = false;
 }
@@ -350,6 +625,72 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
                  m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
                                    "DT_TFGameRules", "m_bPlayingKoth"))});
     }
+
+    auto max_players = m_plugin.interfaces().engine_client().GetMaxClients();
+
+    m_plugin.entity_enumerator().all(
+        [this, &client, max_players, &network_cache](auto entity) {
+            auto index = entity->entindex();
+
+            if (index > max_players)
+                return EntityEnumerator::IterationDecision::Stop;
+
+            if (m_plugin.interfaces().engine_client().IsHLTV() &&
+                index == m_plugin.interfaces().engine_client().GetLocalPlayer())
+                return EntityEnumerator::IterationDecision::Continue;
+
+            auto data_table_base = entity->GetDataTableBasePtr();
+
+            auto player_class = DataTableHelper::get_property_value_from_object<void>(
+                data_table_base,
+                *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayer", "m_PlayerClass"));
+
+            player_info_t player_info{};
+            if (!m_plugin.interfaces().engine_client().GetPlayerInfo(index, &player_info))
+            {
+                spdlog::warn("Failing to send baseline for index {} because we couldn't get their player info", index);
+                return EntityEnumerator::IterationDecision::Continue;
+            }
+
+            uint64_t steam_id;
+
+            if (player_info.fakeplayer || player_info.friendsID == 0)
+                steam_id = 0;
+            else
+                steam_id =
+                    CSteamID(player_info.friendsID, 1, k_EUniversePublic, k_EAccountTypeIndividual).ConvertToUint64();
+
+            PlayerUpdateEvent event = {
+                .index = static_cast<uint8_t>(index),
+                .name = player_info.name,
+                .steam_id = steam_id,
+                .team = *DataTableHelper::get_property_value_from_object<int>(
+                    data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                         "DT_BaseEntity", "m_iTeamNum")),
+                .health = *DataTableHelper::get_property_value_from_object<int>(
+                    data_table_base,
+                    *network_cache.find_receive_property_by_table_name_and_property_name("DT_BasePlayer", "m_iHealth")),
+                // FIXME: Might need to null-check player resource?
+                .max_health = DataTableHelper::get_property_value_from_object<int>(
+                    m_player_resource, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                           "DT_TFPlayerResource", "m_iMaxHealth"))[index],
+                .class_ = *DataTableHelper::get_property_value_from_object<int>(
+                    player_class, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                      "DT_TFPlayerClassShared", "m_iClass")),
+                .next_respawn_time = DataTableHelper::get_property_value_from_object<float>(
+                    m_player_resource, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                           "DT_TFPlayerResource", "m_flNextRespawnTime"))[index],
+                .life_state = *DataTableHelper::get_property_value_from_object<uint8_t>(
+                    data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                         "DT_BasePlayer", "m_lifeState")),
+                .charge_level = get_charge_level_for_player(data_table_base),
+            };
+
+            client.send(event);
+
+            return EntityEnumerator::IterationDecision::Continue;
+        },
+        1);
 }
 
 void Server::FireGameEvent(IGameEvent* event)
@@ -380,40 +721,9 @@ void Server::FireGameEvent(IGameEvent* event)
         auto victim_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(
             m_plugin.interfaces().engine_client().GetPlayerForUserID(event->GetInt("userid")));
 
-        auto my_weapons_property = m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-            "DT_BaseCombatCharacter", "m_hMyWeapons");
-
-        auto my_weapons_handles =
-            DataTableHelper::get_property_value_from_object<int>(victim_entity, *my_weapons_property);
-
-        static constexpr int max_weapons = 48;
-        for (auto i = 0; i < max_weapons; i++)
-        {
-            CBaseHandle weapon_handle(my_weapons_handles[i]);
-
-            if (weapon_handle.IsValid())
-            {
-                auto weapon = m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(weapon_handle);
-
-                if (weapon->GetClientClass()->GetName() == "CWeaponMedigun"sv)
-                {
-                    // Although technically this is stored in two separate data tables at different precisions, it
-                    // ends up in the same place, so let's just pick one.
-                    auto charge_level_property =
-                        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-                            "DT_LocalTFWeaponMedigunData", "m_flChargeLevel");
-
-                    auto charge_level = *DataTableHelper::get_property_value_from_object<float>(
-                        weapon->GetDataTableBasePtr(), *charge_level_property);
-
-                    if (charge_level >= 1.0f)
-                    {
-                        player_death_event.medic_charged = true;
-                        break;
-                    }
-                }
-            }
-        }
+        if (auto charge_level = get_charge_level_for_player(victim_entity->GetDataTableBasePtr());
+            charge_level.has_value() && *charge_level >= 1.0f)
+            player_death_event.medic_charged = true;
 
         send(player_death_event);
     }
@@ -443,6 +753,36 @@ void Server::FireGameEvent(IGameEvent* event)
             .weapon_id = static_cast<uint16_t>(event->GetInt("weaponid")),
         });
     }
+    else if (event->GetName() == "player_info"sv)
+    {
+        // Need to add 1 because this event gives us the index into the userinfo string table, and player entity IDs
+        // start at 1 -- index 0 becomes entity 1, etc.
+        auto index = event->GetInt("index") + 1;
+
+        player_info_t player_info{};
+        if (!m_plugin.interfaces().engine_client().GetPlayerInfo(index, &player_info))
+        {
+            spdlog::warn("Failed to find player info for update");
+            return;
+        }
+
+        if (player_info.ishltv)
+            return;
+
+        uint64_t steam_id;
+
+        if (player_info.fakeplayer || player_info.friendsID == 0)
+            steam_id = 0;
+        else
+            steam_id =
+                CSteamID(player_info.friendsID, 1, k_EUniversePublic, k_EAccountTypeIndividual).ConvertToUint64();
+
+        // NOTE: This information rarely changes, so we won't send deltas for the information itself
+        //       (meaning, if only part of the data changes, we'll still send all of it)
+        auto& pending_player_update = m_pending_player_updates[index];
+        pending_player_update.name = player_info.name;
+        pending_player_update.steam_id = steam_id;
+    }
 }
 
 void Server::flask_network_client_list(const CCommand&)
@@ -468,6 +808,7 @@ Server::Player Server::create_player_from_user_id(uint8_t user_id)
         *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseEntity", "m_iTeamNum");
 
     auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_index);
+
     auto team = *DataTableHelper::get_property_value_from_object<int>(entity->GetDataTableBasePtr(),
                                                                       base_entity_team_number_property);
 
@@ -517,5 +858,33 @@ void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent& game_rule
         json["game_type"] = *game_rules_update_event.game_type;
     if (game_rules_update_event.playing_koth)
         json["playing_koth"] = *game_rules_update_event.playing_koth;
+}
+
+void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent& player_update_event)
+{
+    json["index"] = player_update_event.index;
+
+    if (player_update_event.name)
+        json["name"] = *player_update_event.name;
+
+    // NOTE: We stringify this, to prevent any issues where our library/a client library cannot parse that long of a
+    //       number (because numbers are inherently floating-point in JavaScript/JSON)
+    if (player_update_event.steam_id)
+        json["steam_id"] = std::to_string(*player_update_event.steam_id);
+
+    if (player_update_event.team)
+        json["team"] = *player_update_event.team;
+    if (player_update_event.health)
+        json["health"] = *player_update_event.health;
+    if (player_update_event.max_health)
+        json["max_health"] = *player_update_event.max_health;
+    if (player_update_event.class_)
+        json["class"] = *player_update_event.class_;
+    if (player_update_event.next_respawn_time)
+        json["next_respawn_time"] = *player_update_event.next_respawn_time;
+    if (player_update_event.life_state)
+        json["life_state"] = *player_update_event.life_state;
+    if (player_update_event.charge_level)
+        json["charge_level"] = *player_update_event.charge_level;
 }
 }

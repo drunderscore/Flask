@@ -4,8 +4,15 @@
 #include "../ManagedConCommand.h"
 #include "../Network/WebsocketServer.h"
 #include "Forward.h"
+#include <array>
+#include <basehandle.h>
 #include <igameevents.h>
+#include <map>
 #include <set>
+#include <string>
+#include <string_view>
+
+class IHandleEntity;
 
 namespace Flask::Modules
 {
@@ -24,6 +31,9 @@ public:
     void level_init_post_entity(Badge<Plugin>);
     void level_shutdown_pre_entity(Badge<Plugin>);
     void update(Badge<Plugin>);
+
+    void on_add_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle);
+    void on_remove_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle);
 
     struct Player
     {
@@ -134,6 +144,31 @@ public:
         static constexpr std::string_view s_event_name = "team_update";
     };
 
+    struct PlayerUpdateEvent
+    {
+        uint8_t index;
+
+        std::optional<std::string> name;
+        std::optional<uint64_t> steam_id;
+
+        std::optional<uint8_t> team;
+        std::optional<int> health;
+        std::optional<int> max_health;
+        std::optional<uint8_t> class_;
+        std::optional<float> next_respawn_time;
+        std::optional<uint8_t> life_state;
+        std::optional<float> charge_level;
+
+        static constexpr std::string_view s_event_name = "player_update";
+    };
+
+    struct PlayerRemoveEvent
+    {
+        uint8_t index;
+
+        static constexpr std::string_view s_event_name = "player_remove";
+    };
+
     struct ObserveTargetCommand
     {
         uint8_t index;
@@ -148,6 +183,43 @@ public:
         static constexpr std::string_view s_command_name = "execute_command";
     };
 
+    // C_PlayerResource (and it's TF inheritor, C_TFPlayerResource) store player variables we care about in arrays,
+    // separate from the player entity. This is probably done in such a way so that all clients have access to certain
+    // values, regardless of PVS of the other player... a true Source Engine moment.
+
+    // This is a bit unfortunate for us because arrays are sent and received wholly -- there are no deltas for
+    // individual values. To find out what changed, we need to do the work ourselves.
+    struct PreviousPlayerResource
+    {
+        // These are indexed by entity index.
+        // Entity 0 is ALWAYS worldspawn, and entity 1 - MAXPLAYERS are always players.
+        // Yes, this means that the 0th entry is always unused... A true Valve moment.
+
+        // Max players is of course known as 32.
+        // But, we need to add 1, to make room for the HLTV/STV player.
+        // We also need to add 1 to make up for the unused 0th entry, as described above.
+
+        static constexpr size_t s_array_size = 32 + 1 + 1;
+
+        template<typename T>
+        using ResourceArray = std::array<T, s_array_size>;
+
+        template<typename T>
+        static std::span<T> resource_span(T* begin)
+        {
+            return {begin, s_array_size};
+        }
+
+        template<typename T>
+        static std::span<T> resource_span(void** begin)
+        {
+            return resource_span(*reinterpret_cast<T**>(begin));
+        }
+
+        std::optional<ResourceArray<int>> max_health;
+        std::optional<ResourceArray<float>> next_respawn_time;
+    };
+
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
@@ -157,6 +229,18 @@ private:
     std::set<uint32_t> m_pending_team_updates;
     std::optional<GameRulesUpdateEvent> m_pending_game_rules_update;
 
+    std::map<uint8_t, PlayerUpdateEvent> m_pending_player_updates;
+    std::map<uint32_t, float> m_pending_charge_level_updates;
+    std::optional<PreviousPlayerResource> m_previous_player_resource;
+
+    PreviousPlayerResource& get_or_create_previous_player_resource()
+    {
+        if (!m_previous_player_resource)
+            m_previous_player_resource = {PreviousPlayerResource{}};
+
+        return *m_previous_player_resource;
+    }
+
     GameRulesUpdateEvent& get_or_create_pending_game_rules_update()
     {
         if (!m_pending_game_rules_update)
@@ -165,7 +249,10 @@ private:
         return *m_pending_game_rules_update;
     }
 
+    std::optional<float> get_charge_level_for_player(void*);
+
     void* m_game_rules{};
+    void* m_player_resource{};
     bool m_previous_pause{};
 
     Player create_player_from_user_id(uint8_t);
@@ -178,6 +265,7 @@ private:
 void to_json(nlohmann::json& json, const Server::PlayerDeathEvent&);
 void to_json(nlohmann::json& json, const Server::TimerUpdateEvent&);
 void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent&);
+void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent&);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, team);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetEvent, index);
@@ -187,6 +275,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, he
                                    weapon_id);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value, is_paused);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TeamUpdateEvent, team, score);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerRemoveEvent, index);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ExecuteCommandCommand, value);

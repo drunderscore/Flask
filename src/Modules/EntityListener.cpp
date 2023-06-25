@@ -3,6 +3,7 @@
 #include "AdditionalPointsOfInterest.h"
 #include "HideRespawnRoomVisualizers.h"
 #include "Interfaces.h"
+#include "Server.h"
 
 using namespace std::string_view_literals;
 
@@ -32,6 +33,7 @@ EntityListener::~EntityListener()
 void EntityListener::on_add_entity(CClientEntityList* self, IHandleEntity* entity, CBaseHandle handle)
 {
     Plugin::the().hide_respawn_room_visualizers().on_add_entity({}, *entity, handle);
+    Plugin::the().server().on_add_entity({}, *entity, handle);
     Plugin::the().entity_listener().m_client_entity_list_on_add_entity_function(self, entity, handle);
 }
 
@@ -40,6 +42,7 @@ void EntityListener::on_remove_entity(CClientEntityList* self, IHandleEntity* en
     // NOTE: This hook isn't very useful, because it seems pretty busted.
     // All entities that come through here appear as CBaseEntity (at least, that's what their client class says)
     // This is likely a code path unused by Valve that has rotted away.
+    Plugin::the().server().on_remove_entity({}, *entity, handle);
     Plugin::the().entity_listener().m_client_entity_list_on_remove_entity_function(self, entity, handle);
 }
 }
