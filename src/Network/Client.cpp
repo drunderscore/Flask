@@ -76,11 +76,13 @@ void Client::pump_pending_messages()
                 spdlog::error("Got error whilst writing to websocket client: {}", error.to_string());
                 m_server.did_client_die({}, *this);
             }
+            else
+            {
+                m_pending_messages_to_send.pop();
 
-            m_pending_messages_to_send.pop();
-
-            if (!m_pending_messages_to_send.empty())
-                pump_pending_messages();
+                if (!m_pending_messages_to_send.empty())
+                    pump_pending_messages();
+            }
         });
 }
 
