@@ -20,7 +20,7 @@ class Client
 public:
     Client(boost::beast::net::ip::tcp::socket&&, WebsocketServer&);
 
-    auto initial_remote_endpoint_for_logging() const { return m_initial_endpoint_for_logging; }
+    const auto& initial_remote_endpoint_for_logging() const { return m_initial_endpoint_for_logging; }
 
     template<typename TEvent>
     void send(const TEvent& event)
