@@ -203,6 +203,8 @@ void Server::level_shutdown_pre_entity(Badge<Flask::Plugin>)
     m_pending_game_rules_update.reset();
     m_pending_timer_updates.clear();
     m_pending_team_updates.clear();
+
+    m_game_rules = nullptr;
 }
 
 Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, void* timer)
