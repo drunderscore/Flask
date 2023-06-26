@@ -42,7 +42,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                                 "DT_TeamplayRoundBasedRules", "m_bInSetup"),
                                             [this](auto, auto, auto output_variable) {
                                                 get_or_create_pending_game_rules_update().in_setup =
-                                                    static_cast<bool>(*static_cast<int*>(output_variable));
+                                                    *static_cast<bool*>(output_variable);
                                             });
 
     data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
@@ -68,8 +68,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
     data_table_change_listener.add_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_bPlayingKoth"),
         [this](auto, auto, auto output_variable) {
-            get_or_create_pending_game_rules_update().playing_koth =
-                static_cast<bool>(*static_cast<int*>(output_variable));
+            get_or_create_pending_game_rules_update().playing_koth = *static_cast<bool*>(output_variable);
         });
 
     data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
@@ -216,10 +215,10 @@ Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, v
         plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
                                                                                      "m_flTimerEndTime");
 
-    return {.end_time =
-                *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_end_time_property),
-            .is_paused = static_cast<bool>(
-                *DataTableHelper::get_property_value_from_object<int>(timer, *team_round_timer_paused_property))};
+    return {
+        .end_time = *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_end_time_property),
+        .is_paused = *DataTableHelper::get_property_value_from_object<bool>(timer, *team_round_timer_paused_property),
+    };
 }
 
 Server::TeamUpdateEvent Server::TeamUpdateEvent::from_entity(Flask::Plugin& plugin, void* team)
@@ -317,9 +316,9 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
             {.round_state = *DataTableHelper::get_property_value_from_object<int>(
                  m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
                                    "DT_TeamplayRoundBasedRules", "m_iRoundState")),
-             .in_setup = static_cast<bool>(*DataTableHelper::get_property_value_from_object<int>(
+             .in_setup = *DataTableHelper::get_property_value_from_object<bool>(
                  m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                   "DT_TeamplayRoundBasedRules", "m_bInSetup"))),
+                                   "DT_TeamplayRoundBasedRules", "m_bInSetup")),
              .map_reset_time = *DataTableHelper::get_property_value_from_object<float>(
                  m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
                                    "DT_TeamplayRoundBasedRules", "m_flMapResetTime")),
@@ -329,9 +328,9 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
              .game_type = *DataTableHelper::get_property_value_from_object<int>(
                  m_game_rules,
                  *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_nGameType")),
-             .playing_koth = static_cast<bool>(*DataTableHelper::get_property_value_from_object<int>(
+             .playing_koth = *DataTableHelper::get_property_value_from_object<bool>(
                  m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                   "DT_TFGameRules", "m_bPlayingKoth")))});
+                                   "DT_TFGameRules", "m_bPlayingKoth"))});
     }
 }
 
