@@ -2,13 +2,13 @@
 #include "../DataTableHelper.h"
 #include "../Flask.h"
 #include "../Structures/C_HLTVCamera.h"
+#include "../Structures/IVEngineClient.h"
 #include "Camera.h"
 #include "DataTableChangeListener.h"
 #include "EntityEnumerator.h"
 #include "Interfaces.h"
 #include "NetworkCache.h"
 #include <boost/lexical_cast.hpp>
-#include <cdll_int.h>
 #include <client_class.h>
 #include <icliententity.h>
 #include <icliententitylist.h>

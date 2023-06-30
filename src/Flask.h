@@ -68,6 +68,8 @@ public:
     Modules::EntityEnumerator& entity_enumerator() { return *m_entity_enumerator; }
 
 private:
+    void nag_about_missing_support(std::string_view reason);
+
     std::unique_ptr<boost::asio::io_context> m_io_context;
     std::span<uint8_t> m_client_library_bytes;
 

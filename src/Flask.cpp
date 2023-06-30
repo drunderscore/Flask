@@ -9,8 +9,10 @@
 #include "Modules/Interfaces.h"
 #include "Modules/NetworkCache.h"
 #include "Modules/Server.h"
+#include "Structures/IVEngineClient.h"
 #include "Tier0Logger.h"
 #include <JMP/Platform.h>
+#include <con_nprint.h>
 #include <spdlog/spdlog.h>
 #include <tier1.h>
 
@@ -116,6 +118,41 @@ void Plugin::update(Badge<Modules::GameSystem>)
     m_server->update({});
 }
 
-void Plugin::level_init_post_entity(Badge<Modules::GameSystem>) { m_server->level_init_post_entity({}); }
+void Plugin::nag_about_missing_support(std::string_view reason)
+{
+    con_nprint_t print;
+    print.time_to_live = 20.0;
+    print.index = 4;
+    print.fixed_width_font = false;
+    print.color[0] = 1.0;
+    print.color[1] = 0.2;
+    print.color[2] = 0.2;
+
+    interfaces().engine_client().Con_NXPrintf(&print, "WARNING:  %.*s", reason.size(), reason.data());
+    print.index = 5;
+    interfaces().engine_client().Con_NXPrintf(&print, "This is unsupported by Flask");
+}
+
+void Plugin::level_init_post_entity(Badge<Modules::GameSystem>)
+{
+    m_server->level_init_post_entity({});
+
+    auto& engine_client = interfaces().engine_client();
+
+    // We only support HLTV.
+    // In particular, we only support HLTV with tv_transmitall 1
+    // With this configuration, entities are always transmitted, and PVS doesn't limit us.
+
+    if (!engine_client.IsHLTV())
+        nag_about_missing_support("Not HLTV");
+    else
+    {
+        ConVarRef tv_transmitall("tv_transmitall");
+
+        // We also check if we are playing back a demo, cause the Engine does and so will we!
+        if (!tv_transmitall.GetBool() && !engine_client.IsPlayingDemo())
+            nag_about_missing_support("HLTV PVS is locked");
+    }
+}
 void Plugin::level_shutdown_pre_entity(Badge<Modules::GameSystem>) { m_server->level_shutdown_pre_entity({}); }
 }

@@ -74,6 +74,7 @@ if (UNIX)
             GNUC
             _LINUX
             POSIX
+            USE_SDL
     )
 
     # FIXME: So, Source uses tcmalloc by Google to allocate memory. This means calls to malloc() and free() go through
