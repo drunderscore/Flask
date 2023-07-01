@@ -24,15 +24,19 @@ void EntityEnumerator::all(std::function<IterationDecision(IClientEntity*)> call
     }
 }
 
-std::vector<IClientEntity*> EntityEnumerator::collect_all(std::function<bool(IClientEntity*)> callback,
+std::vector<IClientEntity*> EntityEnumerator::collect_all(std::function<CollectionDecision(IClientEntity*)> callback,
                                                           uint32_t starting_from_entity_index)
 {
     std::vector<IClientEntity*> entities;
 
     all(
         [&entities, callback = std::move(callback)](auto entity) {
-            if (callback(entity))
+            auto decision = callback(entity);
+
+            if (decision == CollectionDecision::Include)
                 entities.push_back(entity);
+            else if (decision == CollectionDecision::Stop)
+                return IterationDecision::Stop;
 
             return IterationDecision::Continue;
         },
@@ -50,15 +54,19 @@ void EntityEnumerator::in_sphere(std::function<IterationDecision(IClientEntity*)
                                                                         radius, false, &enumerator);
 }
 
-std::vector<IClientEntity*> EntityEnumerator::collect_in_sphere(std::function<bool(IClientEntity*)> callback,
-                                                                const Vector& origin, float radius)
+std::vector<IClientEntity*> EntityEnumerator::collect_in_sphere(
+    std::function<CollectionDecision(IClientEntity*)> callback, const Vector& origin, float radius)
 {
     std::vector<IClientEntity*> entities;
 
     in_sphere(
         [&entities, callback = std::move(callback)](auto entity) {
-            if (callback(entity))
+            auto decision = callback(entity);
+
+            if (decision == CollectionDecision::Include)
                 entities.push_back(entity);
+            else if (decision == CollectionDecision::Stop)
+                return IterationDecision::Stop;
 
             return IterationDecision::Continue;
         },

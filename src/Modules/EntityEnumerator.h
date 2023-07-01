@@ -23,15 +23,22 @@ public:
         Stop = ITERATION_STOP
     };
 
+    enum class CollectionDecision
+    {
+        Include,
+        DoNotInclude,
+        Stop
+    };
+
     explicit EntityEnumerator(Plugin& plugin) : m_plugin(plugin) {}
 
     void all(std::function<IterationDecision(IClientEntity*)>, uint32_t starting_from_entity_index = 0);
-    std::vector<IClientEntity*> collect_all(std::function<bool(IClientEntity*)>,
+    std::vector<IClientEntity*> collect_all(std::function<CollectionDecision(IClientEntity*)>,
                                             uint32_t starting_from_entity_index = 0);
 
     void in_sphere(std::function<IterationDecision(IClientEntity*)>, const Vector& origin, float radius);
-    std::vector<IClientEntity*> collect_in_sphere(std::function<bool(IClientEntity*)>, const Vector& origin,
-                                                  float radius);
+    std::vector<IClientEntity*> collect_in_sphere(std::function<CollectionDecision(IClientEntity*)>,
+                                                  const Vector& origin, float radius);
 
 private:
     class FunctionalPartitionEnumerator : public IPartitionEnumerator

@@ -73,22 +73,22 @@ std::vector<AdditionalPointsOfInterest::StickyTrap> AdditionalPointsOfInterest::
              &base_entity_team_number_property](auto predicate_entity) {
                 // Always include the root sticky.
                 if (entity == predicate_entity)
-                    return true;
+                    return EntityEnumerator::CollectionDecision::Include;
 
                 // Ensure this is actually a sticky that is stuck to the world.
                 if (!is_sticky_bomb_that_has_touched_something(predicate_entity))
-                    return false;
+                    return EntityEnumerator::CollectionDecision::DoNotInclude;
 
                 // Ensure this sticky isn't already part of a trap.
                 if (stickies_already_in_a_trap.contains(predicate_entity->entindex()))
-                    return false;
+                    return EntityEnumerator::CollectionDecision::DoNotInclude;
 
                 // Ensure this sticky is on the same team as the root sticky
                 if (*DataTableHelper::get_property_value_from_object<int>(predicate_entity->GetDataTableBasePtr(),
                                                                           base_entity_team_number_property) != team)
-                    return false;
+                    return EntityEnumerator::CollectionDecision::DoNotInclude;
 
-                return true;
+                return EntityEnumerator::CollectionDecision::Include;
             },
             entity->GetAbsOrigin(), m_flask_additional_poi_sticky_trap_maximum_distance->GetFloat());
 
