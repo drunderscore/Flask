@@ -159,6 +159,17 @@ public:
         std::optional<uint8_t> life_state;
         std::optional<float> charge_level;
 
+        struct Weapon
+        {
+            std::optional<uint16_t> definition_index;
+
+            static Weapon from_entity(Plugin&, void*);
+        };
+
+        // We only transmit the active weapon.
+        std::optional<Weapon> weapon;
+        bool active_weapon_changed{};
+
         static constexpr std::string_view s_event_name = "player_update";
     };
 

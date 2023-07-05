@@ -188,6 +188,26 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                                     *static_cast<float*>(output_variable);
                                             });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseCombatCharacter",
+                                                                             "m_hActiveWeapon"),
+        [this](auto data, auto, auto output_variable) {
+            // There are a few things that inherit from CBaseCombatCharacter that
+            // aren't a player, and that are quite undesirable. Namely, CTFTauntProp
+            // and CBaseObject (buildings and sapper) inherit this.
+            // However, these aren't players, and will mess with our assumptions, so
+            // check the true client class when one of these changes.
+
+            // We can get the entity here, but have to be careful what we access.
+            // It's highly likely there's more data following that hasn't been put into the structure yet.
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(data->m_ObjectID);
+
+            if (entity->GetClientClass()->GetName() != "CTFPlayer"sv)
+                return;
+
+            m_pending_player_updates[data->m_ObjectID].active_weapon_changed = true;
+        });
+
     accept();
 }
 
@@ -244,6 +264,9 @@ Server::~Server()
     data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
         "DT_TFWeaponMedigunDataNonLocal", "m_flChargeLevel"));
 
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_BaseCombatCharacter", "m_hActiveWeapon"));
+
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
 
@@ -278,6 +301,31 @@ std::optional<float> Server::get_charge_level_for_player(void* player)
     }
 
     return {};
+}
+
+Server::PlayerUpdateEvent::Weapon Server::PlayerUpdateEvent::Weapon::from_entity(Plugin& plugin, void* data_table_base)
+{
+    auto& network_cache = plugin.network_cache();
+
+    auto econ_entity_attribute_manager =
+        network_cache.find_receive_property_by_table_name_and_property_name("DT_EconEntity", "m_AttributeManager");
+
+    auto attribute_container_item =
+        network_cache.find_receive_property_by_table_name_and_property_name("DT_AttributeContainer", "m_Item");
+
+    auto script_created_item_item_definition_index =
+        network_cache.find_receive_property_by_table_name_and_property_name("DT_ScriptCreatedItem",
+                                                                            "m_iItemDefinitionIndex");
+
+    auto attribute_manager =
+        DataTableHelper::get_property_value_from_object<void>(data_table_base, *econ_entity_attribute_manager);
+
+    auto item = DataTableHelper::get_property_value_from_object<void>(attribute_manager, *attribute_container_item);
+
+    auto item_definition_index =
+        DataTableHelper::get_property_value_from_object<uint16_t>(item, *script_created_item_item_definition_index);
+
+    return {.definition_index = *item_definition_index};
 }
 
 void Server::update(Badge<Flask::Plugin>)
@@ -436,6 +484,26 @@ void Server::update(Badge<Flask::Plugin>)
         for (auto& [entity_id, event] : m_pending_player_updates)
         {
             event.index = entity_id;
+
+            if (event.active_weapon_changed)
+            {
+                auto player =
+                    m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id)->GetDataTableBasePtr();
+
+                if (CBaseHandle weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
+                        player, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                    "DT_BaseCombatCharacter", "m_hActiveWeapon")));
+                    weapon_handle.IsValid())
+                {
+                    auto weapon = m_plugin.interfaces()
+                                      .client_entity_list()
+                                      .GetClientNetworkableFromHandle(weapon_handle)
+                                      ->GetDataTableBasePtr();
+
+                    event.weapon = PlayerUpdateEvent::Weapon::from_entity(m_plugin, weapon);
+                }
+            }
+
             send(event);
         }
 
@@ -660,7 +728,22 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
                 steam_id =
                     CSteamID(player_info.friendsID, 1, k_EUniversePublic, k_EAccountTypeIndividual).ConvertToUint64();
 
-            PlayerUpdateEvent event = {
+            std::optional<PlayerUpdateEvent::Weapon> weapon;
+
+            if (CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
+                    data_table_base, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                         "DT_BaseCombatCharacter", "m_hActiveWeapon")));
+                active_weapon_handle.IsValid())
+            {
+                auto active_weapon = m_plugin.interfaces()
+                                         .client_entity_list()
+                                         .GetClientNetworkableFromHandle(active_weapon_handle)
+                                         ->GetDataTableBasePtr();
+
+                weapon = PlayerUpdateEvent::Weapon::from_entity(m_plugin, active_weapon);
+            }
+
+            client.send<PlayerUpdateEvent>({
                 .index = static_cast<uint8_t>(index),
                 .name = player_info.name,
                 .steam_id = steam_id,
@@ -684,9 +767,8 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
                     data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
                                          "DT_BasePlayer", "m_lifeState")),
                 .charge_level = get_charge_level_for_player(data_table_base),
-            };
-
-            client.send(event);
+                .weapon = std::move(weapon),
+            });
 
             return EntityEnumerator::IterationDecision::Continue;
         },
@@ -860,6 +942,12 @@ void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent& game_rule
         json["playing_koth"] = *game_rules_update_event.playing_koth;
 }
 
+void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent::Weapon& weapon)
+{
+    if (weapon.definition_index)
+        json["definition_index"] = *weapon.definition_index;
+}
+
 void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent& player_update_event)
 {
     json["index"] = player_update_event.index;
@@ -886,5 +974,7 @@ void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent& player_updat
         json["life_state"] = *player_update_event.life_state;
     if (player_update_event.charge_level)
         json["charge_level"] = *player_update_event.charge_level;
+    if (player_update_event.weapon)
+        json["weapon"] = *player_update_event.weapon;
 }
 }
