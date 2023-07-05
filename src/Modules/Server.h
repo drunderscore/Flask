@@ -60,7 +60,7 @@ public:
 
     struct ObserveTargetEvent
     {
-        uint8_t index;
+        uint32_t index;
 
         static constexpr std::string_view s_event_name = "observe_target";
     };
