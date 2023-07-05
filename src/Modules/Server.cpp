@@ -133,6 +133,12 @@ Server::~Server()
 
 void Server::update(Badge<Flask::Plugin>)
 {
+    if (m_previous_pause != m_plugin.interfaces().engine_client().IsPaused())
+    {
+        m_previous_pause = !m_previous_pause;
+        send(TickCountUpdateEvent::create(m_plugin));
+    }
+
     if (m_pending_game_rules_update)
     {
         send(*m_pending_game_rules_update);
@@ -192,18 +198,32 @@ void Server::update(Badge<Flask::Plugin>)
     }
 }
 
-void Server::level_init_post_entity(Badge<Plugin>)
+Server::TickCountUpdateEvent Server::TickCountUpdateEvent::create(Plugin& plugin)
 {
-    send<TickCountUpdateEvent>({.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
+    return {
+        .value = static_cast<uint32_t>(plugin.interfaces().engine_tool().ClientTick()),
+        .is_paused = plugin.interfaces().engine_client().IsPaused(),
+    };
 }
 
-void Server::level_shutdown_pre_entity(Badge<Flask::Plugin>)
+void Server::level_init_post_entity(Badge<Plugin>)
+{
+    send(TickCountUpdateEvent::create(m_plugin));
+
+    // Update our previous pause to our current paused state, so we don't send a second tick count update event when it
+    // realizes this (may) have changed.
+    m_previous_pause = m_plugin.interfaces().engine_client().IsPaused();
+}
+
+void Server::level_shutdown_pre_entity(Badge<Plugin>)
 {
     m_pending_game_rules_update.reset();
     m_pending_timer_updates.clear();
     m_pending_team_updates.clear();
 
     m_game_rules = nullptr;
+    // Default to not being paused.
+    m_previous_pause = false;
 }
 
 Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, void* timer)
@@ -263,9 +283,7 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
 
     client.send<ObserveTargetEvent>({static_cast<uint8_t>(m_plugin.camera().camera().target_1)});
 
-    // FIXME: What about pauses? Probably need a separate event for that.
-    client.send<TickCountUpdateEvent>(
-        {.value = static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick())});
+    client.send(TickCountUpdateEvent::create(m_plugin));
 
     std::optional<uint32_t> red_koth_timer_entity_index;
     std::optional<uint32_t> blue_koth_timer_entity_index;

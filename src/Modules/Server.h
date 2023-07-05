@@ -90,6 +90,9 @@ public:
     struct TickCountUpdateEvent
     {
         uint32_t value;
+        bool is_paused;
+
+        static TickCountUpdateEvent create(Plugin&);
 
         static constexpr std::string_view s_event_name = "tick_count";
     };
@@ -163,6 +166,7 @@ private:
     }
 
     void* m_game_rules{};
+    bool m_previous_pause{};
 
     Player create_player_from_user_id(uint8_t);
 
@@ -181,7 +185,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker, object_type, entity_id, weapon);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, health, damage, crit, mini_crit,
                                    weapon_id);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value, is_paused);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TeamUpdateEvent, team, score);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
