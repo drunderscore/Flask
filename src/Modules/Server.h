@@ -3,6 +3,7 @@
 #include "../Forward.h"
 #include "../ManagedConCommand.h"
 #include "../Network/WebsocketServer.h"
+#include "Camera.h"
 #include "Forward.h"
 #include <array>
 #include <basehandle.h>
@@ -58,11 +59,15 @@ public:
         static constexpr std::string_view s_event_name = "player_death";
     };
 
-    struct ObserveTargetEvent
+    struct ObserveEvent
     {
-        uint32_t index;
+        std::optional<uint32_t> target;
+        std::optional<Camera::ObserveMode> mode;
+        std::optional<Vector> position;
+        std::optional<QAngle> angle;
+        std::optional<float> distance;
 
-        static constexpr std::string_view s_event_name = "observe_target";
+        static constexpr std::string_view s_event_name = "observe";
     };
 
     struct UserInteractionEvent
@@ -180,11 +185,11 @@ public:
         static constexpr std::string_view s_event_name = "player_remove";
     };
 
-    struct ObserveTargetCommand
+    struct ObserveCommand : public ObserveEvent
     {
-        uint8_t index;
+        bool snap_distance{};
 
-        static constexpr std::string_view s_command_name = "observe_target";
+        static constexpr std::string_view s_command_name = "observe";
     };
 
     struct ExecuteCommandCommand
@@ -273,13 +278,15 @@ private:
 };
 
 // This structure has an optional in it, which nlohammn JSON still can't handle...
-void to_json(nlohmann::json& json, const Server::PlayerDeathEvent&);
-void to_json(nlohmann::json& json, const Server::TimerUpdateEvent&);
-void to_json(nlohmann::json& json, const Server::GameRulesUpdateEvent&);
-void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent&);
+void to_json(nlohmann::json&, const Server::PlayerDeathEvent&);
+void to_json(nlohmann::json&, const Server::TimerUpdateEvent&);
+void to_json(nlohmann::json&, const Server::GameRulesUpdateEvent&);
+void to_json(nlohmann::json&, const Server::PlayerUpdateEvent&);
+void to_json(nlohmann::json&, const Server::ObserveEvent&);
+
+void from_json(const nlohmann::json&, Server::ObserveCommand&);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, team);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetEvent, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker, object_type, entity_id, weapon);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, health, damage, crit, mini_crit,
@@ -288,6 +295,5 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value, is_pause
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TeamUpdateEvent, team, score);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerRemoveEvent, index);
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObserveTargetCommand, index);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ExecuteCommandCommand, value);
 }

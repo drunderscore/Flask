@@ -8,6 +8,7 @@
 #include "EntityEnumerator.h"
 #include "Interfaces.h"
 #include "NetworkCache.h"
+#include <boost/asio/defer.hpp>
 #include <boost/lexical_cast.hpp>
 #include <client_class.h>
 #include <icliententity.h>
@@ -28,6 +29,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
     auto& data_table_change_listener = plugin.data_table_change_listener();
 
     game_event_manager.AddListener(this, "hltv_changed_target", false);
+    game_event_manager.AddListener(this, "hltv_changed_mode", false);
     game_event_manager.AddListener(this, "player_death", false);
     game_event_manager.AddListener(this, "object_destroyed", false);
     game_event_manager.AddListener(this, "player_hurt", true);
@@ -602,10 +604,42 @@ Server::TeamUpdateEvent Server::TeamUpdateEvent::from_entity(Flask::Plugin& plug
 
 void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json& message)
 {
-    if (command == ObserveTargetCommand::s_command_name)
+    if (command == ObserveCommand::s_command_name)
     {
-        ObserveTargetCommand observe_target_command = message;
-        m_plugin.camera().set_observe_target(observe_target_command.index);
+        auto& camera = m_plugin.camera();
+
+        ObserveCommand observe_command = message;
+        if (observe_command.mode)
+            camera.set_mode(*observe_command.mode);
+
+        if (observe_command.target)
+            camera.set_observe_target(*observe_command.target);
+
+        if (observe_command.distance)
+        {
+            camera.camera().distance = *observe_command.distance;
+
+            if (observe_command.snap_distance)
+                camera.camera().last_distance = *observe_command.distance;
+        }
+
+        if (observe_command.position)
+            camera.camera().camera_origin = *observe_command.position;
+
+        if (observe_command.angle)
+        {
+            // If we are in chase or roam, then we need to set the entire client's view angles.
+            auto observe_mode = static_cast<Camera::ObserveMode>(camera.camera().camera_mode);
+            if (observe_mode == Camera::ObserveMode::Chase || observe_mode == Camera::ObserveMode::Roaming)
+            {
+                m_plugin.interfaces().engine_client().SetViewAngles(*observe_command.angle);
+            }
+            else
+            {
+                camera.camera().camera_angle = *observe_command.angle;
+                camera.camera().last_angle_update_time = m_plugin.interfaces().engine_tool().GetRealTime();
+            }
+        }
     }
     else if (command == ExecuteCommandCommand::s_command_name)
     {
@@ -624,7 +658,14 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
 
     spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.initial_remote_endpoint_for_logging()));
 
-    client.send<ObserveTargetEvent>({static_cast<uint32_t>(m_plugin.camera().camera().target_1)});
+    auto& camera = m_plugin.camera().camera();
+    client.send<ObserveEvent>({
+        .target = camera.target_1,
+        .mode = static_cast<Camera::ObserveMode>(camera.camera_mode),
+        .position = camera.camera_origin,
+        .angle = camera.camera_angle,
+        .distance = camera.distance,
+    });
 
     client.send(TickCountUpdateEvent::create(m_plugin));
 
@@ -779,7 +820,33 @@ void Server::FireGameEvent(IGameEvent* event)
 {
     if (event->GetName() == "hltv_changed_target"sv)
     {
-        send<ObserveTargetEvent>({static_cast<uint32_t>(event->GetInt("obs_target"))});
+        send<ObserveEvent>({.target = static_cast<uint32_t>(event->GetInt("obs_target"))});
+    }
+    else if (event->GetName() == "hltv_changed_mode"sv)
+    {
+        // We'll defer to later when we call update so everything has updated.
+        boost::asio::defer(m_plugin.io_context(), [this]() {
+            auto& camera = m_plugin.camera().camera();
+
+            auto mode = static_cast<Camera::ObserveMode>(camera.camera_mode);
+
+            ObserveEvent event{
+                .mode = mode,
+            };
+
+            if (mode == Camera::ObserveMode::Fixed)
+            {
+                event.position = camera.camera_origin;
+                event.angle = camera.camera_angle;
+            }
+            else if (mode == Camera::ObserveMode::Chase)
+            {
+                event.distance = camera.distance;
+                event.angle = camera.camera_angle;
+            }
+
+            send(event);
+        });
     }
     else if (event->GetName() == "player_death"sv)
     {
@@ -976,5 +1043,44 @@ void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent& player_updat
         json["charge_level"] = *player_update_event.charge_level;
     if (player_update_event.weapon)
         json["weapon"] = *player_update_event.weapon;
+}
+
+void to_json(nlohmann::json& json, const Server::ObserveEvent& observe_event)
+{
+    if (observe_event.target)
+        json["target"] = *observe_event.target;
+
+    if (observe_event.mode)
+        json["mode"] = *observe_event.mode;
+
+    if (observe_event.position)
+        json["position"] = {observe_event.position->x, observe_event.position->y, observe_event.position->z};
+
+    if (observe_event.angle)
+        json["angle"] = {observe_event.angle->x, observe_event.angle->y, observe_event.angle->z};
+
+    if (observe_event.distance)
+        json["distance"] = *observe_event.distance;
+}
+
+void from_json(const nlohmann::json& json, Server::ObserveCommand& observe_command)
+{
+    if (auto value = json.find("target"); value != json.end() && value->is_number_unsigned())
+        observe_command.target = value->get<uint32_t>();
+
+    if (auto value = json.find("mode"); value != json.end() && value->is_number_unsigned())
+        observe_command.mode = value->get<Camera::ObserveMode>();
+
+    if (auto value = json.find("position"); value != json.end() && value->is_array())
+        observe_command.position = {value->at(0).get<float>(), value->at(1).get<float>(), value->at(2).get<float>()};
+
+    if (auto value = json.find("angle"); value != json.end() && value->is_array())
+        observe_command.angle = {value->at(0).get<float>(), value->at(1).get<float>(), value->at(2).get<float>()};
+
+    if (auto value = json.find("distance"); value != json.end() && value->is_number())
+        observe_command.distance = value->get<float>();
+
+    if (auto value = json.find("snap_distance"); value != json.end() && value->is_boolean())
+        observe_command.snap_distance = value->get<bool>();
 }
 }
