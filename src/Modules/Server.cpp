@@ -22,6 +22,10 @@ using namespace std::string_view_literals;
 
 namespace Flask::Modules
 {
+std::set<std::string_view> Server::s_convars_to_sync = {
+    "mp_timelimit",
+};
+
 Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), m_plugin(plugin)
 {
     auto& game_event_manager = plugin.interfaces().game_event_manager();
@@ -220,6 +224,16 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
         });
 
     accept();
+
+    g_pCVar->InstallGlobalChangeCallback([](auto* convar_interface, auto* previous_value, auto) {
+        auto convar = dynamic_cast<ConVar*>(convar_interface);
+
+        if (convar && s_convars_to_sync.contains(convar->GetName()))
+            Plugin::the().server().send<ConVarUpdateEvent>({
+                .name = convar->GetName(),
+                .value = convar->GetString(),
+            });
+    });
 }
 
 Server::~Server()
@@ -721,6 +735,22 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
     auto& network_cache = m_plugin.network_cache();
 
     spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.initial_remote_endpoint_for_logging()));
+
+    for (auto convar_name : s_convars_to_sync)
+    {
+        auto convar = g_pCVar->FindVar(convar_name.data());
+
+        if (!convar)
+        {
+            spdlog::warn("Skipping sync of convar {} because it does not exist");
+            continue;
+        }
+
+        client.send<ConVarUpdateEvent>({
+            .name = std::string(convar_name),
+            .value = convar->GetString(),
+        });
+    }
 
     auto& camera = m_plugin.camera().camera();
     client.send<ObserveEvent>({

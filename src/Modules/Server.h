@@ -186,6 +186,14 @@ public:
         static constexpr std::string_view s_event_name = "player_remove";
     };
 
+    struct ConVarUpdateEvent
+    {
+        std::string name;
+        std::string value;
+
+        static constexpr std::string_view s_event_name = "convar_update";
+    };
+
     struct ObserveCommand : public ObserveEvent
     {
         bool snap_distance{};
@@ -282,6 +290,9 @@ private:
 
     Player create_player_from_user_id(uint8_t);
 
+    // TODO: In the future, we should not define this list ourselves, but rather the client should tell us which convars
+    //       it is interested in.
+    static std::set<std::string_view> s_convars_to_sync;
     static void flask_network_client_list(const CCommand&);
     static void flask_send_user_interaction(const CCommand&);
 };
@@ -303,6 +314,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, he
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value, is_paused);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TeamUpdateEvent, team, score);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerRemoveEvent, index);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ConVarUpdateEvent, name, value);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ExecuteCommandCommand, value);
 }
