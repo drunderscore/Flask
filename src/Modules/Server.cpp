@@ -184,9 +184,9 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                             [this](auto data, auto, auto output_variable) {
                                                 // We need to know the owner of this weapon to update the player
                                                 // themselves. However, we might not know just yet who m_hOwner is.
-                                                // We'll just remember for later that this medigun charge has changed,
-                                                // and update it on the player later.
-                                                m_pending_charge_level_updates[data->m_ObjectID] =
+                                                // We'll just remember for later that this has changed, and update it on
+                                                // the player later.
+                                                m_pending_weapon_updates[data->m_ObjectID].charge_level =
                                                     *static_cast<float*>(output_variable);
                                             });
 
@@ -208,6 +208,15 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                 return;
 
             m_pending_player_updates[data->m_ObjectID].active_weapon_changed = true;
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalWeaponData", "m_iClip1"),
+        [this](auto data, auto, auto output_variable) {
+            // We need to know the owner of this weapon to update the player
+            // themselves. However, we might not know just yet who m_hOwner is.
+            // We'll just remember for later that this has changed, and update it on the player later.
+            m_pending_weapon_updates[data->m_ObjectID].clip = *static_cast<int*>(output_variable);
         });
 
     accept();
@@ -324,10 +333,21 @@ Server::PlayerUpdateEvent::Weapon Server::PlayerUpdateEvent::Weapon::from_entity
 
     auto item = DataTableHelper::get_property_value_from_object<void>(attribute_manager, *attribute_container_item);
 
-    auto item_definition_index =
-        DataTableHelper::get_property_value_from_object<uint16_t>(item, *script_created_item_item_definition_index);
+    auto base_combat_weapon_local_weapon_data =
+        network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseCombatWeapon", "LocalWeaponData");
 
-    return {.definition_index = *item_definition_index};
+    auto local_weapon_data_clip_1_property =
+        network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalWeaponData", "m_iClip1");
+
+    auto local_weapon_data =
+        DataTableHelper::get_property_value_from_object<void>(data_table_base, *base_combat_weapon_local_weapon_data);
+
+    return {
+        .definition_index = *DataTableHelper::get_property_value_from_object<uint16_t>(
+            item, *script_created_item_item_definition_index),
+        .clip = *DataTableHelper::get_property_value_from_object<int>(local_weapon_data,
+                                                                      *local_weapon_data_clip_1_property),
+    };
 }
 
 void Server::update(Badge<Flask::Plugin>)
@@ -458,9 +478,9 @@ void Server::update(Badge<Flask::Plugin>)
         m_previous_player_resource.reset();
     }
 
-    if (!m_pending_charge_level_updates.empty())
+    if (!m_pending_weapon_updates.empty())
     {
-        for (auto& [entity_id, charge_level] : m_pending_charge_level_updates)
+        for (auto& [entity_id, weapon_update] : m_pending_weapon_updates)
         {
             auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
 
@@ -471,14 +491,18 @@ void Server::update(Badge<Flask::Plugin>)
 
             if (!owner_handle.IsValid())
             {
-                spdlog::warn("Got charge level update for {}, but it has no valid owner!", entity_id);
+                spdlog::warn("Got weapon update for {}, but it has no valid owner!", entity_id);
                 continue;
             }
 
-            m_pending_player_updates[owner_handle.GetEntryIndex()].charge_level = charge_level;
+            if (weapon_update.charge_level)
+                m_pending_player_updates[owner_handle.GetEntryIndex()].charge_level = *weapon_update.charge_level;
+
+            if (weapon_update.clip)
+                m_pending_player_updates[owner_handle.GetEntryIndex()].weapon = {.clip = *weapon_update.clip};
         }
 
-        m_pending_charge_level_updates.clear();
+        m_pending_weapon_updates.clear();
     }
 
     if (!m_pending_player_updates.empty())
@@ -603,7 +627,7 @@ void Server::level_shutdown_pre_entity(Badge<Plugin>)
     m_pending_team_updates.clear();
     m_pending_player_updates.clear();
     m_previous_player_resource.reset();
-    m_pending_charge_level_updates.clear();
+    m_pending_weapon_updates.clear();
 
     m_game_rules = nullptr;
     m_player_resource = nullptr;
@@ -1053,6 +1077,16 @@ void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent::Weapon& weap
 {
     if (weapon.definition_index)
         json["definition_index"] = *weapon.definition_index;
+
+    if (weapon.clip)
+    {
+        auto value = *weapon.clip;
+
+        if (value == -1)
+            json["clip"] = nullptr;
+        else
+            json["clip"] = *weapon.clip;
+    }
 }
 
 void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent& player_update_event)

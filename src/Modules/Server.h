@@ -167,6 +167,7 @@ public:
         struct Weapon
         {
             std::optional<uint16_t> definition_index;
+            std::optional<int> clip;
 
             static Weapon from_entity(Plugin&, void*);
         };
@@ -236,6 +237,12 @@ public:
         std::optional<ResourceArray<float>> next_respawn_time;
     };
 
+    struct WeaponUpdate
+    {
+        std::optional<float> charge_level;
+        std::optional<int> clip;
+    };
+
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
@@ -246,7 +253,7 @@ private:
     std::optional<GameRulesUpdateEvent> m_pending_game_rules_update;
 
     std::map<uint8_t, PlayerUpdateEvent> m_pending_player_updates;
-    std::map<uint32_t, float> m_pending_charge_level_updates;
+    std::map<uint32_t, WeaponUpdate> m_pending_weapon_updates;
     std::optional<PreviousPlayerResource> m_previous_player_resource;
 
     PreviousPlayerResource& get_or_create_previous_player_resource()
