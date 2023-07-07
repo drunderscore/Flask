@@ -118,6 +118,7 @@ public:
         std::optional<uint8_t> team;
         float end_time;
         bool is_paused;
+        float time_remaining;
 
         static TimerUpdateEvent from_entity(Plugin&, void*);
 

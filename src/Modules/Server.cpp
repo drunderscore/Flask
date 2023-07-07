@@ -94,6 +94,10 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimerEndTime"),
         on_timer_updated);
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimeRemaining"),
+        on_timer_updated);
+
     auto on_team_updated = [this](auto data, auto, auto) { m_pending_team_updates.insert(data->m_ObjectID); };
 
     data_table_change_listener.add_listener(
@@ -308,6 +312,8 @@ Server::~Server()
 
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_bTimerPaused"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimerEndTime"));
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimerEndTime"));
 
@@ -765,9 +771,15 @@ Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, v
         plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
                                                                                      "m_flTimerEndTime");
 
+    auto team_round_timer_time_remaining_property =
+        plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
+                                                                                     "m_flTimeRemaining");
+
     return {
         .end_time = *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_end_time_property),
         .is_paused = *DataTableHelper::get_property_value_from_object<bool>(timer, *team_round_timer_paused_property),
+        .time_remaining =
+            *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_time_remaining_property),
     };
 }
 
@@ -1188,6 +1200,7 @@ void to_json(nlohmann::json& json, const Server::TimerUpdateEvent& timer_update_
     json = {
         {"end_time", timer_update_event.end_time},
         {"is_paused", timer_update_event.is_paused},
+        {"time_remaining", timer_update_event.time_remaining},
     };
 
     if (timer_update_event.team.has_value())
