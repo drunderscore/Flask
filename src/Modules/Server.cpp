@@ -292,6 +292,9 @@ Server::~Server()
     data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
         "DT_BaseCombatCharacter", "m_hActiveWeapon"));
 
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalWeaponData", "m_iClip1"));
+
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
 
