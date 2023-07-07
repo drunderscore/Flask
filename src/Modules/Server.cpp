@@ -223,6 +223,54 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             m_pending_weapon_updates[data->m_ObjectID].clip = *static_cast<int*>(output_variable);
         });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerScoringDataExclusive",
+                                                                             "m_iKills"),
+        [this](auto data, auto output_structure, auto output_variable) {
+            // DT_TFPlayerScoringDataExclusive is stored twice for every player --
+            // once as match data, and once as round data (reset every round). We
+            // care about the match data for the time being, and so to identify the
+            // specific property this structure is contained in, we'll compare our
+            // output structure pointer to the pointer existing on the player.
+
+            auto player = m_plugin.interfaces()
+                              .client_entity_list()
+                              .GetClientNetworkable(data->m_ObjectID)
+                              ->GetDataTableBasePtr();
+
+            if (output_structure == get_score_data_for_player(player))
+                m_pending_player_updates[data->m_ObjectID].get_or_create_statistics().kills =
+                    *static_cast<int*>(output_variable);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerScoringDataExclusive",
+                                                                             "m_iDeaths"),
+        [this](auto data, auto output_structure, auto output_variable) {
+            auto player = m_plugin.interfaces()
+                              .client_entity_list()
+                              .GetClientNetworkable(data->m_ObjectID)
+                              ->GetDataTableBasePtr();
+
+            if (output_structure == get_score_data_for_player(player))
+                m_pending_player_updates[data->m_ObjectID].get_or_create_statistics().deaths =
+                    *static_cast<int*>(output_variable);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerScoringDataExclusive",
+                                                                             "m_iKillAssists"),
+        [this](auto data, auto output_structure, auto output_variable) {
+            auto player = m_plugin.interfaces()
+                              .client_entity_list()
+                              .GetClientNetworkable(data->m_ObjectID)
+                              ->GetDataTableBasePtr();
+
+            if (output_structure == get_score_data_for_player(player))
+                m_pending_player_updates[data->m_ObjectID].get_or_create_statistics().assists =
+                    *static_cast<int*>(output_variable);
+        });
+
     accept();
 
     g_pCVar->InstallGlobalChangeCallback([](auto* convar_interface, auto* previous_value, auto) {
@@ -295,6 +343,15 @@ Server::~Server()
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalWeaponData", "m_iClip1"));
 
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerScoringDataExclusive", "m_iKills"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerScoringDataExclusive", "m_iDeaths"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerScoringDataExclusive", "m_iKillAssists"));
+
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
 
@@ -331,6 +388,28 @@ std::optional<float> Server::get_charge_level_for_player(void* player)
     return {};
 }
 
+void* Server::get_score_data_for_player(void* player)
+{
+    auto tf_player_shared_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayer", "m_Shared");
+
+    auto player_shared = DataTableHelper::get_property_value_from_object<void>(player, *tf_player_shared_property);
+
+    auto tf_player_shared_local_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared",
+                                                                                       "tfsharedlocaldata");
+
+    auto player_shared_local =
+        DataTableHelper::get_property_value_from_object<void>(player_shared, *tf_player_shared_local_property);
+
+    auto tf_player_shared_score_data_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayerSharedLocal",
+                                                                                       "m_ScoreData");
+
+    return DataTableHelper::get_property_value_from_object<void>(player_shared_local,
+                                                                 *tf_player_shared_score_data_property);
+}
+
 Server::PlayerUpdateEvent::Weapon Server::PlayerUpdateEvent::Weapon::from_entity(Plugin& plugin, void* data_table_base)
 {
     auto& network_cache = plugin.network_cache();
@@ -364,6 +443,31 @@ Server::PlayerUpdateEvent::Weapon Server::PlayerUpdateEvent::Weapon::from_entity
             item, *script_created_item_item_definition_index),
         .clip = *DataTableHelper::get_property_value_from_object<int>(local_weapon_data,
                                                                       *local_weapon_data_clip_1_property),
+    };
+}
+
+Server::PlayerUpdateEvent::Statistics Server::PlayerUpdateEvent::Statistics::create(Server& server, void* player)
+{
+    auto& network_cache = server.m_plugin.network_cache();
+    auto score_data = server.get_score_data_for_player(player);
+
+    auto player_scoring_data_exclusive_kills = network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerScoringDataExclusive", "m_iKills");
+
+    auto player_scoring_data_exclusive_deaths = network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerScoringDataExclusive", "m_iDeaths");
+
+    auto player_scoring_data_exclusive_kill_assists =
+        network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerScoringDataExclusive",
+                                                                            "m_iKillAssists");
+
+    return {
+        .kills =
+            *DataTableHelper::get_property_value_from_object<int>(score_data, *player_scoring_data_exclusive_kills),
+        .deaths =
+            *DataTableHelper::get_property_value_from_object<int>(score_data, *player_scoring_data_exclusive_deaths),
+        .assists = *DataTableHelper::get_property_value_from_object<int>(score_data,
+                                                                         *player_scoring_data_exclusive_kill_assists),
     };
 }
 
@@ -906,6 +1010,7 @@ void Server::on_client_connected(Badge<Network::Client>, Network::Client& client
                                          "DT_BasePlayer", "m_lifeState")),
                 .charge_level = get_charge_level_for_player(data_table_base),
                 .weapon = std::move(weapon),
+                .statistics = PlayerUpdateEvent::Statistics::create(*this, data_table_base),
             });
 
             return EntityEnumerator::IterationDecision::Continue;
@@ -1122,6 +1227,16 @@ void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent::Weapon& weap
     }
 }
 
+void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent::Statistics& player_update_event_statistics)
+{
+    if (player_update_event_statistics.kills)
+        json["kills"] = *player_update_event_statistics.kills;
+    if (player_update_event_statistics.deaths)
+        json["deaths"] = *player_update_event_statistics.deaths;
+    if (player_update_event_statistics.assists)
+        json["assists"] = *player_update_event_statistics.assists;
+}
+
 void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent& player_update_event)
 {
     json["index"] = player_update_event.index;
@@ -1150,6 +1265,8 @@ void to_json(nlohmann::json& json, const Server::PlayerUpdateEvent& player_updat
         json["charge_level"] = *player_update_event.charge_level;
     if (player_update_event.weapon)
         json["weapon"] = *player_update_event.weapon;
+    if (player_update_event.statistics)
+        json["statistics"] = *player_update_event.statistics;
 }
 
 void to_json(nlohmann::json& json, const Server::ObserveEvent& observe_event)

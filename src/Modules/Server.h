@@ -176,6 +176,24 @@ public:
         std::optional<Weapon> weapon;
         bool active_weapon_changed{};
 
+        struct Statistics
+        {
+            std::optional<uint32_t> kills;
+            std::optional<uint32_t> deaths;
+            std::optional<uint32_t> assists;
+
+            static Statistics create(Server&, void* player);
+        };
+
+        std::optional<Statistics> statistics;
+        Statistics& get_or_create_statistics()
+        {
+            if (!statistics)
+                statistics = {Statistics{}};
+
+            return *statistics;
+        }
+
         static constexpr std::string_view s_event_name = "player_update";
     };
 
@@ -281,6 +299,7 @@ private:
     }
 
     std::optional<float> get_charge_level_for_player(void*);
+    void* get_score_data_for_player(void*);
 
     void* m_game_rules{};
     void* m_player_resource{};
@@ -301,6 +320,7 @@ private:
 void to_json(nlohmann::json&, const Server::PlayerDeathEvent&);
 void to_json(nlohmann::json&, const Server::TimerUpdateEvent&);
 void to_json(nlohmann::json&, const Server::GameRulesUpdateEvent&);
+void to_json(nlohmann::json&, const Server::PlayerUpdateEvent::Statistics&);
 void to_json(nlohmann::json&, const Server::PlayerUpdateEvent&);
 void to_json(nlohmann::json&, const Server::ObserveEvent&);
 
