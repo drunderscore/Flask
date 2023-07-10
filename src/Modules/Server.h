@@ -125,6 +125,11 @@ public:
         static constexpr std::string_view s_event_name = "timer_update";
     };
 
+    struct ShutdownEvent
+    {
+        static constexpr std::string_view s_event_name = "shutdown";
+    };
+
     struct GameRulesUpdateEvent
     {
         // Teamplay round-based game rules
@@ -324,6 +329,7 @@ void to_json(nlohmann::json&, const Server::GameRulesUpdateEvent&);
 void to_json(nlohmann::json&, const Server::PlayerUpdateEvent::Statistics&);
 void to_json(nlohmann::json&, const Server::PlayerUpdateEvent&);
 void to_json(nlohmann::json&, const Server::ObserveEvent&);
+inline void to_json(nlohmann::json&, const Server::ShutdownEvent&) {}
 
 void from_json(const nlohmann::json&, Server::ObserveCommand&);
 

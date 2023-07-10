@@ -760,6 +760,8 @@ void Server::level_shutdown_pre_entity(Badge<Plugin>)
     m_player_resource = nullptr;
     // Default to not being paused.
     m_previous_pause = false;
+
+    send<ShutdownEvent>({});
 }
 
 Server::TimerUpdateEvent Server::TimerUpdateEvent::from_entity(Plugin& plugin, void* timer)
