@@ -33,9 +33,10 @@ std::vector<IClientEntity*> EntityEnumerator::collect_all(std::function<Collecti
         [&entities, callback = std::move(callback)](auto entity) {
             auto decision = callback(entity);
 
-            if (decision == CollectionDecision::Include)
+            if (decision.include)
                 entities.push_back(entity);
-            else if (decision == CollectionDecision::Stop)
+
+            if (decision.stop)
                 return IterationDecision::Stop;
 
             return IterationDecision::Continue;
@@ -63,9 +64,10 @@ std::vector<IClientEntity*> EntityEnumerator::collect_in_sphere(
         [&entities, callback = std::move(callback)](auto entity) {
             auto decision = callback(entity);
 
-            if (decision == CollectionDecision::Include)
+            if (decision.include)
                 entities.push_back(entity);
-            else if (decision == CollectionDecision::Stop)
+
+            if (decision.stop)
                 return IterationDecision::Stop;
 
             return IterationDecision::Continue;

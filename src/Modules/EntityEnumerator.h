@@ -23,11 +23,10 @@ public:
         Stop = ITERATION_STOP
     };
 
-    enum class CollectionDecision
+    struct CollectionDecision
     {
-        Include,
-        DoNotInclude,
-        Stop
+        bool include{};
+        bool stop{};
     };
 
     explicit EntityEnumerator(Plugin& plugin) : m_plugin(plugin) {}

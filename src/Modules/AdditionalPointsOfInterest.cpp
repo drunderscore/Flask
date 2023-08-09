@@ -70,25 +70,25 @@ std::vector<AdditionalPointsOfInterest::StickyTrap> AdditionalPointsOfInterest::
 
         auto nearby_stickies = m_plugin.entity_enumerator().collect_in_sphere(
             [entity, team, &stickies_already_in_a_trap, is_sticky_bomb_that_has_touched_something,
-             &base_entity_team_number_property](auto predicate_entity) {
+             &base_entity_team_number_property](auto predicate_entity) -> EntityEnumerator::CollectionDecision {
                 // Always include the root sticky.
                 if (entity == predicate_entity)
-                    return EntityEnumerator::CollectionDecision::Include;
+                    return {.include = true};
 
                 // Ensure this is actually a sticky that is stuck to the world.
                 if (!is_sticky_bomb_that_has_touched_something(predicate_entity))
-                    return EntityEnumerator::CollectionDecision::DoNotInclude;
+                    return {};
 
                 // Ensure this sticky isn't already part of a trap.
                 if (stickies_already_in_a_trap.contains(predicate_entity->entindex()))
-                    return EntityEnumerator::CollectionDecision::DoNotInclude;
+                    return {};
 
                 // Ensure this sticky is on the same team as the root sticky
                 if (*DataTableHelper::get_property_value_from_object<int>(predicate_entity->GetDataTableBasePtr(),
                                                                           base_entity_team_number_property) != team)
-                    return EntityEnumerator::CollectionDecision::DoNotInclude;
+                    return {};
 
-                return EntityEnumerator::CollectionDecision::Include;
+                return {.include = true};
             },
             entity->GetAbsOrigin(), m_flask_additional_poi_sticky_trap_maximum_distance->GetFloat());
 

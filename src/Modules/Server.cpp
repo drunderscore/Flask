@@ -547,17 +547,17 @@ void Server::update(Badge<Flask::Plugin>)
     {
         auto max_players = m_plugin.interfaces().engine_client().GetMaxClients();
         auto all_valid_players = m_plugin.entity_enumerator().collect_all(
-            [this, max_players](auto entity) {
+            [this, max_players](auto entity) -> EntityEnumerator::CollectionDecision {
                 auto index = entity->entindex();
 
                 if (index > max_players)
-                    return EntityEnumerator::CollectionDecision::Stop;
+                    return {.stop = true};
 
                 if (m_plugin.interfaces().engine_client().IsHLTV() &&
                     index == m_plugin.interfaces().engine_client().GetLocalPlayer())
-                    return EntityEnumerator::CollectionDecision::DoNotInclude;
+                    return {};
 
-                return EntityEnumerator::CollectionDecision::Include;
+                return {.include = true};
             },
             1);
 
