@@ -21,6 +21,8 @@ add_subdirectory(JMP)
 add_library(Flask SHARED
         src/DataTableHelper.cpp
         src/Flask.cpp
+        src/TraceFilter.cpp
+
         src/Network/Client.cpp
         src/Network/WebsocketServer.cpp
 

@@ -7,6 +7,7 @@
 class IBaseClientDLL;
 class IClientEntityList;
 class IEngineTool;
+class IEngineTrace;
 class IGameEventManager2;
 class ISpatialPartition;
 class IVDebugOverlay;
@@ -28,6 +29,7 @@ public:
     IVEngineClient013& engine_client() { return *m_engine_client; }
     IVDebugOverlay& debug_overlay() { return *m_debug_overlay; }
     ISpatialPartition& spatial_partition() { return *m_spatial_partition; }
+    IEngineTrace& engine_trace() { return *m_engine_trace; }
 
 private:
     IEngineTool* m_engine_tool{};
@@ -38,6 +40,7 @@ private:
     IVEngineClient013* m_engine_client{};
     IVDebugOverlay* m_debug_overlay{};
     ISpatialPartition* m_spatial_partition{};
+    IEngineTrace* m_engine_trace{};
 
     template<typename T>
     static void try_load_interface(T*& destination, const char* interface_version,

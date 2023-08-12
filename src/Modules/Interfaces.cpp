@@ -1,4 +1,5 @@
 #include "Interfaces.h"
+#include <IEngineTrace.h>
 #include <cdll_int.h>
 #include <icliententitylist.h>
 #include <igameevents.h>
@@ -26,5 +27,6 @@ Interfaces::Interfaces(CreateInterfaceFn interface_factory, CreateInterfaceFn ga
     try_load_interface(m_engine_client, VENGINE_CLIENT_INTERFACE_VERSION, interface_factory);
     try_load_interface(m_debug_overlay, VDEBUG_OVERLAY_INTERFACE_VERSION, interface_factory);
     try_load_interface(m_spatial_partition, INTERFACEVERSION_SPATIALPARTITION, interface_factory);
+    try_load_interface(m_engine_trace, INTERFACEVERSION_ENGINETRACE_CLIENT, interface_factory);
 }
 }
