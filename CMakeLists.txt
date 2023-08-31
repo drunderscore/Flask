@@ -86,6 +86,7 @@ add_library(Flask SHARED
         src/Modules/HideRespawnRoomVisualizers.cpp
         src/Modules/Interfaces.cpp
         src/Modules/NetworkCache.cpp
+        src/Modules/Passtime.cpp
         src/Modules/Server.cpp
 
         src/Protocol/Flask.cpp
@@ -155,12 +156,12 @@ if (UNIX)
     set_target_properties(Flask PROPERTIES PREFIX "")
 
     target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/linux)
-    target_link_libraries(Flask PRIVATE -l:tier1_i486.a steam_api)
+    target_link_libraries(Flask PRIVATE -l:tier1_i486.a steam_api -l:mathlib_i486.a)
 elseif (WIN32)
     target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/public)
     # The steam_api.lib provided by hl2sdk is outdated, and if we provide one it'll conflict with the existing one.
     # So we'll use an absolute path to it on Windows.
-    target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions ${CMAKE_SOURCE_DIR}/Libraries/Windows/steam_api.lib)
+    target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions ${CMAKE_SOURCE_DIR}/Libraries/Windows/steam_api.lib mathlib)
 endif ()
 
 target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol sentry::sentry subhook::subhook)

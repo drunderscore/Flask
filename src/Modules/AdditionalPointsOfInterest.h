@@ -14,7 +14,6 @@ class IClientEntity;
 
 namespace Flask::Modules
 {
-
 class AdditionalPointsOfInterest
 {
 public:
@@ -34,6 +33,7 @@ private:
     static void flask_additional_poi_spectate_sentry(const CCommand&);
     static void flask_additional_poi_spectate_sticky_trap(const CCommand&);
     static void flask_additional_poi_display(const CCommand&);
+    static void flask_additional_poi_spectate_passtime_ball(const CCommand&);
 
     Plugin& m_plugin;
 
@@ -48,6 +48,8 @@ private:
                                                                   flask_additional_poi_spectate_sticky_trap};
     ManagedConCommand m_flask_additional_poi_spectate_sentry{"flask_additional_poi_spectate_sentry",
                                                              flask_additional_poi_spectate_sentry};
+    ManagedConCommand m_flask_additional_poi_spectate_passtime_ball{"flask_additional_poi_spectate_passtime_ball",
+                                                                    flask_additional_poi_spectate_passtime_ball};
 
     ManagedConCommand m_flask_additional_poi_display{"flask_additional_poi_display", flask_additional_poi_display};
 };

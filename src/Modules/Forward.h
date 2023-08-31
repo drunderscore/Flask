@@ -12,5 +12,6 @@ class GameSystem;
 class HideRespawnRoomVisualizers;
 class Interfaces;
 class NetworkCache;
+class Passtime;
 class Server;
 }

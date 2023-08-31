@@ -9,6 +9,7 @@
 #include "Modules/HideRespawnRoomVisualizers.h"
 #include "Modules/Interfaces.h"
 #include "Modules/NetworkCache.h"
+#include "Modules/Passtime.h"
 #include "Modules/Server.h"
 #include "Structures/IVEngineClient.h"
 #include "Tier0Logger.h"
@@ -88,6 +89,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         m_server = std::make_unique<Modules::Server>(*this);
         m_additional_points_of_interest = std::make_unique<Modules::AdditionalPointsOfInterest>(*this);
         m_entity_enumerator = std::make_unique<Modules::EntityEnumerator>(*this);
+        m_passtime = std::make_unique<Modules::Passtime>(*this);
     }
     catch (const std::exception& ex)
     {
@@ -95,6 +97,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         return false;
     }
 
+    MathLib_Init(2.2f, 2.2f, 0.0f, 2.0f);
     ConVar_Register();
 
     spdlog::info("Flask loaded");
@@ -107,6 +110,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 //        are likely elsewhere now!
 void Plugin::Unload()
 {
+    m_passtime.reset();
     m_entity_enumerator.reset();
     m_additional_points_of_interest.reset();
     m_server.reset();

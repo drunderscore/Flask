@@ -76,6 +76,7 @@ public:
     Modules::DataTableChangeListener& data_table_change_listener() { return *m_data_table_change_listener; }
     Modules::AdditionalPointsOfInterest& additional_points_of_interest() { return *m_additional_points_of_interest; }
     Modules::EntityEnumerator& entity_enumerator() { return *m_entity_enumerator; }
+    Modules::Passtime& passtime() { return *m_passtime; }
 
 private:
     void nag_about_missing_support(std::string_view reason);
@@ -95,6 +96,7 @@ private:
     std::unique_ptr<Modules::DataTableChangeListener> m_data_table_change_listener;
     std::unique_ptr<Modules::AdditionalPointsOfInterest> m_additional_points_of_interest;
     std::unique_ptr<Modules::EntityEnumerator> m_entity_enumerator;
+    std::unique_ptr<Modules::Passtime> m_passtime;
 
     std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
 };

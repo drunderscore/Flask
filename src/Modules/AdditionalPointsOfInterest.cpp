@@ -155,6 +155,11 @@ void AdditionalPointsOfInterest::flask_additional_poi_display(const CCommand&)
     }
 }
 
+void AdditionalPointsOfInterest::flask_additional_poi_spectate_passtime_ball(const CCommand&)
+{
+    Plugin::the().camera().set_mode(Camera::ObserveMode::POI);
+}
+
 void AdditionalPointsOfInterest::flask_additional_poi_spectate_sticky_trap(const CCommand& args)
 {
     auto& camera = Plugin::the().camera();

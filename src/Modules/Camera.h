@@ -1,8 +1,13 @@
 #pragma once
 
 #include "../Forward.h"
+#include "../ManagedConCommand.h"
 #include "../Structures/Forward.h"
 #include <JMP/Signature.h>
+#include <subhook.h>
+
+class Vector;
+class QAngle;
 
 namespace Flask::Modules
 {
@@ -23,17 +28,25 @@ public:
 
     explicit Camera(const Plugin&);
 
-    void set_observe_target(int index);
-    void set_mode(ObserveMode);
-
     inline Structures::C_HLTVCamera& camera() { return *m_hltv_camera_singleton_getter(); }
+
+    inline void set_observe_target(int index) { m_hltv_camera_set_primary_target_function(&camera(), index); }
+    inline void set_mode(ObserveMode mode) { m_hltv_camera_set_mode_function(&camera(), static_cast<int>(mode)); }
 
 private:
     static JMP::Signature s_call_to_hltv_camera_singleton_getter;
     static JMP::Signature s_hltv_camera_set_primary_target_function;
     static JMP::Signature s_hltv_camera_set_mode_function;
+    static JMP::Signature s_hltv_camera_calc_view;
+
+#ifdef POSIX
+    static __attribute__((cdecl)) void calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle&, float& fov);
+#else
+    static void __thiscall calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle&, float& fov);
+#endif
 
     typedef Structures::C_HLTVCamera* (*C_HLTVCameraSingletonGetterFn)();
+    using C_HLTVCameraCalcViewFn = decltype(calc_view)*;
 
 #ifdef POSIX
     typedef __attribute__((cdecl)) void (*C_HLTVCameraSetPrimaryTargetFn)(Structures::C_HLTVCamera*, int);
@@ -46,5 +59,7 @@ private:
     C_HLTVCameraSingletonGetterFn m_hltv_camera_singleton_getter{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_mode_function{};
+    C_HLTVCameraCalcViewFn m_hltv_camera_calc_view{};
+    subhook::Hook m_hltv_camera_calc_view_subhook{};
 };
 }
