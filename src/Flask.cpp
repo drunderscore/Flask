@@ -39,11 +39,20 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 
     ConnectTier1Libraries(&interface_factory, 1);
 
-    // If we are loaded with debug, then we'll allow debug messages to go through.
-    // Though if this changes later on though, they'll get stopped by tier0... oh well.
-    ConVarRef developer_convar("developer");
-    if (developer_convar.GetBool())
-        spdlog::set_level(spdlog::level::debug);
+    g_pCVar->FindVar("developer")->InstallChangeCallback([](auto convar_interface, auto, auto) {
+        auto convar = dynamic_cast<ConVar*>(convar_interface);
+
+        if (convar->GetInt() >= 2)
+        {
+            spdlog::set_level(spdlog::level::debug);
+            spdlog::debug("Flask debug spew enabled");
+        }
+        else
+        {
+            spdlog::debug("Flask debug spew disabled");
+            spdlog::set_level(spdlog::level::info);
+        }
+    });
 
     m_client_library_bytes = JMP::Platform::get_bytes_for_library_name(s_client_library_name.data());
 
