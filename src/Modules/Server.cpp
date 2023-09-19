@@ -728,6 +728,11 @@ void Server::on_remove_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle
 
         send<PlayerRemoveEvent>({.index = static_cast<uint8_t>(entity_index)});
     }
+    else
+    {
+        if (m_pending_weapon_updates.erase(entity_index) > 0)
+            spdlog::debug("Weapon entity removed that had a pending update!");
+    }
 }
 
 Server::TickCountUpdateEvent Server::TickCountUpdateEvent::create(Plugin& plugin)
