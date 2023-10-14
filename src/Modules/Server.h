@@ -24,6 +24,7 @@ public:
     ~Server() override;
 
     void did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json&) override;
+    void did_client_listen_to_event(Badge<Network::Client>, Network::Client&, std::string_view event_name) override;
 
     void on_client_connected(Badge<Network::Client>, Network::Client&) override;
 

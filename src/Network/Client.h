@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <queue>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -25,6 +26,9 @@ public:
     template<typename TEvent>
     void send(const TEvent& event)
     {
+        if (!m_listening_events.contains(event.s_event_name))
+            return;
+
         nlohmann::json event_serialized_to_json = event;
         event_serialized_to_json["event"] = event.s_event_name;
         send(event_serialized_to_json);
@@ -45,5 +49,6 @@ private:
     std::queue<std::string> m_pending_messages_to_send;
     // The initial endpoint, intended to be used for logging purposes only.
     boost::asio::ip::tcp::endpoint m_initial_endpoint_for_logging;
+    std::set<std::string, std::less<>> m_listening_events;
 };
 }

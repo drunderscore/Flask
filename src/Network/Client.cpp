@@ -4,6 +4,8 @@
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
+using namespace std::string_view_literals;
+
 namespace Flask::Network
 {
 Client::Client(boost::beast::net::ip::tcp::socket&& socket, WebsocketServer& server)
@@ -129,7 +131,16 @@ void Client::on_message(nlohmann::json message)
 
     try
     {
-        m_server.did_receive_command({}, command, message);
+        if (command == "listen"sv)
+        {
+            auto event_name = message.at("value").get<std::string>();
+            m_listening_events.insert(event_name);
+            m_server.did_client_listen_to_event({}, *this, event_name);
+        }
+        else
+        {
+            m_server.did_receive_command({}, command, message);
+        }
     }
     catch (const std::exception& ex)
     {

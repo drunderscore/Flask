@@ -816,185 +816,214 @@ void Server::did_receive_command(Badge<Flask::Network::Client>, std::string_view
     }
 }
 
-void Server::on_client_connected(Badge<Network::Client>, Network::Client& client)
+void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client& client, std::string_view event_name)
 {
     auto& network_cache = m_plugin.network_cache();
 
-    spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.initial_remote_endpoint_for_logging()));
-
-    for (auto convar_name : s_convars_to_sync)
+    if (event_name == ConVarUpdateEvent::s_event_name)
     {
-        auto convar = g_pCVar->FindVar(convar_name.data());
-
-        if (!convar)
+        for (auto convar_name : s_convars_to_sync)
         {
-            spdlog::warn("Skipping sync of convar {} because it does not exist");
-            continue;
-        }
+            auto convar = g_pCVar->FindVar(convar_name.data());
 
-        client.send<ConVarUpdateEvent>({
-            .name = std::string(convar_name),
-            .value = convar->GetString(),
-        });
-    }
-
-    auto& camera = m_plugin.camera().camera();
-    client.send<ObserveEvent>({
-        .target = camera.target_1,
-        .mode = static_cast<Camera::ObserveMode>(camera.camera_mode),
-        .position = camera.camera_origin,
-        .angle = camera.camera_angle,
-        .distance = camera.distance,
-    });
-
-    client.send(TickCountUpdateEvent::create(m_plugin));
-
-    std::optional<uint32_t> red_koth_timer_entity_index;
-    std::optional<uint32_t> blue_koth_timer_entity_index;
-
-    if (m_game_rules)
-    {
-        auto send_event_for_koth_timer_if_exists =
-            [this, &network_cache, &client](std::string_view property_name, uint8_t team) -> std::optional<uint32_t> {
-            auto koth_timer_handle_property =
-                network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", property_name);
-
-            auto koth_timer_handle = CBaseHandle(
-                *DataTableHelper::get_property_value_from_object<int>(m_game_rules, *koth_timer_handle_property));
-
-            if (auto koth_timer =
-                    m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(koth_timer_handle))
+            if (!convar)
             {
-                auto event = TimerUpdateEvent::from_entity(m_plugin, koth_timer->GetDataTableBasePtr());
-                event.team = team;
-                client.send(event);
-
-                return koth_timer_handle.GetEntryIndex();
+                spdlog::warn("Skipping sync of convar {} because it does not exist");
+                continue;
             }
 
-            return {};
-        };
-
-        red_koth_timer_entity_index = send_event_for_koth_timer_if_exists("m_hRedKothTimer", 2);
-        blue_koth_timer_entity_index = send_event_for_koth_timer_if_exists("m_hBlueKothTimer", 3);
+            client.send<ConVarUpdateEvent>({
+                .name = std::string(convar_name),
+                .value = convar->GetString(),
+            });
+        }
     }
+    else if (event_name == ObserveEvent::s_event_name)
+    {
+        auto& camera = m_plugin.camera().camera();
+        client.send<ObserveEvent>({
+            .target = camera.target_1,
+            .mode = static_cast<Camera::ObserveMode>(camera.camera_mode),
+            .position = camera.camera_origin,
+            .angle = camera.camera_angle,
+            .distance = camera.distance,
+        });
+    }
+    else if (event_name == TickCountUpdateEvent::s_event_name)
+    {
+        client.send(TickCountUpdateEvent::create(m_plugin));
+    }
+    else if (event_name == TimerUpdateEvent::s_event_name)
+    {
+        // FIXME: This is wrong.
+        std::optional<uint32_t> red_koth_timer_entity_index;
+        std::optional<uint32_t> blue_koth_timer_entity_index;
 
-    m_plugin.entity_enumerator().all(
-        [this, &client, &red_koth_timer_entity_index, &blue_koth_timer_entity_index](auto entity) {
+        if (m_game_rules)
+        {
+            auto send_event_for_koth_timer_if_exists = [this, &network_cache,
+                                                        &client](std::string_view property_name,
+                                                                 uint8_t team) -> std::optional<uint32_t> {
+                auto koth_timer_handle_property = network_cache.find_receive_property_by_table_name_and_property_name(
+                    "DT_TFGameRules", property_name);
+
+                auto koth_timer_handle = CBaseHandle(
+                    *DataTableHelper::get_property_value_from_object<int>(m_game_rules, *koth_timer_handle_property));
+
+                if (auto koth_timer =
+                        m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(koth_timer_handle))
+                {
+                    auto event = TimerUpdateEvent::from_entity(m_plugin, koth_timer->GetDataTableBasePtr());
+                    event.team = team;
+                    client.send(event);
+
+                    return koth_timer_handle.GetEntryIndex();
+                }
+
+                return {};
+            };
+
+            red_koth_timer_entity_index = send_event_for_koth_timer_if_exists("m_hRedKothTimer", 2);
+            blue_koth_timer_entity_index = send_event_for_koth_timer_if_exists("m_hBlueKothTimer", 3);
+        }
+
+        m_plugin.entity_enumerator().all(
+            [this, &client, &red_koth_timer_entity_index, &blue_koth_timer_entity_index](auto entity) {
+                auto client_class_name = entity->GetClientClass()->GetName();
+
+                if (client_class_name == "CTeamRoundTimer"sv && entity->entindex() != red_koth_timer_entity_index &&
+                    entity->entindex() != blue_koth_timer_entity_index)
+                    client.send(TimerUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
+
+                return EntityEnumerator::IterationDecision::Continue;
+            });
+    }
+    else if (event_name == TeamUpdateEvent::s_event_name)
+    {
+        m_plugin.entity_enumerator().all([this, &client](auto entity) {
             auto client_class_name = entity->GetClientClass()->GetName();
 
-            if (client_class_name == "CTeamRoundTimer"sv && entity->entindex() != red_koth_timer_entity_index &&
-                entity->entindex() != blue_koth_timer_entity_index)
-                client.send(TimerUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
-            else if (client_class_name == "CTFTeam"sv)
+            if (client_class_name == "CTFTeam"sv)
                 client.send(TeamUpdateEvent::from_entity(m_plugin, entity->GetDataTableBasePtr()));
 
             return EntityEnumerator::IterationDecision::Continue;
         });
-
-    if (m_game_rules)
-    {
-        client.send<GameRulesUpdateEvent>(
-            {.round_state = *DataTableHelper::get_property_value_from_object<int>(
-                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                   "DT_TeamplayRoundBasedRules", "m_iRoundState")),
-             .in_setup = *DataTableHelper::get_property_value_from_object<bool>(
-                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                   "DT_TeamplayRoundBasedRules", "m_bInSetup")),
-             .map_reset_time = *DataTableHelper::get_property_value_from_object<float>(
-                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                   "DT_TeamplayRoundBasedRules", "m_flMapResetTime")),
-             .countdown_time = *DataTableHelper::get_property_value_from_object<float>(
-                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                   "DT_TeamplayRoundBasedRules", "m_flCountdownTime")),
-             .game_type = *DataTableHelper::get_property_value_from_object<int>(
-                 m_game_rules,
-                 *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules", "m_nGameType")),
-             .playing_koth = *DataTableHelper::get_property_value_from_object<bool>(
-                 m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                   "DT_TFGameRules", "m_bPlayingKoth"))});
     }
+    else if (event_name == GameRulesUpdateEvent::s_event_name)
+    {
+        if (m_game_rules)
+        {
+            client.send<GameRulesUpdateEvent>(
+                {.round_state = *DataTableHelper::get_property_value_from_object<int>(
+                     m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                       "DT_TeamplayRoundBasedRules", "m_iRoundState")),
+                 .in_setup = *DataTableHelper::get_property_value_from_object<bool>(
+                     m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                       "DT_TeamplayRoundBasedRules", "m_bInSetup")),
+                 .map_reset_time = *DataTableHelper::get_property_value_from_object<float>(
+                     m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                       "DT_TeamplayRoundBasedRules", "m_flMapResetTime")),
+                 .countdown_time = *DataTableHelper::get_property_value_from_object<float>(
+                     m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                       "DT_TeamplayRoundBasedRules", "m_flCountdownTime")),
+                 .game_type = *DataTableHelper::get_property_value_from_object<int>(
+                     m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                       "DT_TFGameRules", "m_nGameType")),
+                 .playing_koth = *DataTableHelper::get_property_value_from_object<bool>(
+                     m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                       "DT_TFGameRules", "m_bPlayingKoth"))});
+        }
+    }
+    else if (event_name == PlayerUpdateEvent::s_event_name)
+    {
+        auto max_players = m_plugin.interfaces().engine_client().GetMaxClients();
 
-    auto max_players = m_plugin.interfaces().engine_client().GetMaxClients();
+        m_plugin.entity_enumerator().all(
+            [this, &client, max_players, &network_cache](auto entity) {
+                auto index = entity->entindex();
 
-    m_plugin.entity_enumerator().all(
-        [this, &client, max_players, &network_cache](auto entity) {
-            auto index = entity->entindex();
+                if (index > max_players)
+                    return EntityEnumerator::IterationDecision::Stop;
 
-            if (index > max_players)
-                return EntityEnumerator::IterationDecision::Stop;
+                if (m_plugin.interfaces().engine_client().IsHLTV() &&
+                    index == m_plugin.interfaces().engine_client().GetLocalPlayer())
+                    return EntityEnumerator::IterationDecision::Continue;
 
-            if (m_plugin.interfaces().engine_client().IsHLTV() &&
-                index == m_plugin.interfaces().engine_client().GetLocalPlayer())
-                return EntityEnumerator::IterationDecision::Continue;
+                auto data_table_base = entity->GetDataTableBasePtr();
 
-            auto data_table_base = entity->GetDataTableBasePtr();
-
-            auto player_class = DataTableHelper::get_property_value_from_object<void>(
-                data_table_base,
-                *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayer", "m_PlayerClass"));
-
-            player_info_t player_info{};
-            if (!m_plugin.interfaces().engine_client().GetPlayerInfo(index, &player_info))
-            {
-                spdlog::warn("Failing to send baseline for index {} because we couldn't get their player info", index);
-                return EntityEnumerator::IterationDecision::Continue;
-            }
-
-            uint64_t steam_id;
-
-            if (player_info.fakeplayer || player_info.friendsID == 0)
-                steam_id = 0;
-            else
-                steam_id =
-                    CSteamID(player_info.friendsID, 1, k_EUniversePublic, k_EAccountTypeIndividual).ConvertToUint64();
-
-            std::optional<PlayerUpdateEvent::Weapon> weapon;
-
-            if (CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
-                    data_table_base, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-                                         "DT_BaseCombatCharacter", "m_hActiveWeapon")));
-                active_weapon_handle.IsValid())
-            {
-                auto active_weapon = m_plugin.interfaces()
-                                         .client_entity_list()
-                                         .GetClientNetworkableFromHandle(active_weapon_handle)
-                                         ->GetDataTableBasePtr();
-
-                weapon = PlayerUpdateEvent::Weapon::from_entity(m_plugin, active_weapon);
-            }
-
-            client.send<PlayerUpdateEvent>({
-                .index = static_cast<uint8_t>(index),
-                .name = player_info.name,
-                .steam_id = steam_id,
-                .team = *DataTableHelper::get_property_value_from_object<int>(
+                auto player_class = DataTableHelper::get_property_value_from_object<void>(
                     data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                         "DT_BaseEntity", "m_iTeamNum")),
-                .health = *DataTableHelper::get_property_value_from_object<int>(
-                    data_table_base,
-                    *network_cache.find_receive_property_by_table_name_and_property_name("DT_BasePlayer", "m_iHealth")),
-                // FIXME: Might need to null-check player resource?
-                .max_health = DataTableHelper::get_property_value_from_object<int>(
-                    m_player_resource, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                           "DT_TFPlayerResource", "m_iMaxHealth"))[index],
-                .class_ = *DataTableHelper::get_property_value_from_object<int>(
-                    player_class, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                      "DT_TFPlayerClassShared", "m_iClass")),
-                .next_respawn_time = DataTableHelper::get_property_value_from_object<float>(
-                    m_player_resource, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                           "DT_TFPlayerResource", "m_flNextRespawnTime"))[index],
-                .life_state = *DataTableHelper::get_property_value_from_object<uint8_t>(
-                    data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
-                                         "DT_BasePlayer", "m_lifeState")),
-                .charge_level = get_charge_level_for_player(data_table_base),
-                .weapon = std::move(weapon),
-                .statistics = PlayerUpdateEvent::Statistics::create(*this, data_table_base),
-            });
+                                         "DT_TFPlayer", "m_PlayerClass"));
 
-            return EntityEnumerator::IterationDecision::Continue;
-        },
-        1);
+                player_info_t player_info{};
+                if (!m_plugin.interfaces().engine_client().GetPlayerInfo(index, &player_info))
+                {
+                    spdlog::warn("Failing to send baseline for index {} because we couldn't get their player info",
+                                 index);
+                    return EntityEnumerator::IterationDecision::Continue;
+                }
+
+                uint64_t steam_id;
+
+                if (player_info.fakeplayer || player_info.friendsID == 0)
+                    steam_id = 0;
+                else
+                    steam_id = CSteamID(player_info.friendsID, 1, k_EUniversePublic, k_EAccountTypeIndividual)
+                                   .ConvertToUint64();
+
+                std::optional<PlayerUpdateEvent::Weapon> weapon;
+
+                if (CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
+                        data_table_base,
+                        *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                            "DT_BaseCombatCharacter", "m_hActiveWeapon")));
+                    active_weapon_handle.IsValid())
+                {
+                    auto active_weapon = m_plugin.interfaces()
+                                             .client_entity_list()
+                                             .GetClientNetworkableFromHandle(active_weapon_handle)
+                                             ->GetDataTableBasePtr();
+
+                    weapon = PlayerUpdateEvent::Weapon::from_entity(m_plugin, active_weapon);
+                }
+
+                client.send<PlayerUpdateEvent>({
+                    .index = static_cast<uint8_t>(index),
+                    .name = player_info.name,
+                    .steam_id = steam_id,
+                    .team = *DataTableHelper::get_property_value_from_object<int>(
+                        data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                             "DT_BaseEntity", "m_iTeamNum")),
+                    .health = *DataTableHelper::get_property_value_from_object<int>(
+                        data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                             "DT_BasePlayer", "m_iHealth")),
+                    // FIXME: Might need to null-check player resource?
+                    .max_health = DataTableHelper::get_property_value_from_object<int>(
+                        m_player_resource, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                               "DT_TFPlayerResource", "m_iMaxHealth"))[index],
+                    .class_ = *DataTableHelper::get_property_value_from_object<int>(
+                        player_class, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                          "DT_TFPlayerClassShared", "m_iClass")),
+                    .next_respawn_time = DataTableHelper::get_property_value_from_object<float>(
+                        m_player_resource, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                               "DT_TFPlayerResource", "m_flNextRespawnTime"))[index],
+                    .life_state = *DataTableHelper::get_property_value_from_object<uint8_t>(
+                        data_table_base, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                             "DT_BasePlayer", "m_lifeState")),
+                    .charge_level = get_charge_level_for_player(data_table_base),
+                    .weapon = std::move(weapon),
+                    .statistics = PlayerUpdateEvent::Statistics::create(*this, data_table_base),
+                });
+
+                return EntityEnumerator::IterationDecision::Continue;
+            },
+            1);
+    }
+}
+
+void Server::on_client_connected(Badge<Network::Client>, Network::Client& client)
+{
+    spdlog::info("Client {} connected", boost::lexical_cast<std::string>(client.initial_remote_endpoint_for_logging()));
 }
 
 void Server::FireGameEvent(IGameEvent* event)
