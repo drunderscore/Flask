@@ -662,46 +662,6 @@ void Server::update(Badge<Flask::Plugin>)
 
         m_pending_player_updates.clear();
     }
-
-    auto observe_mode = static_cast<Camera::ObserveMode>(m_plugin.camera().camera().camera_mode);
-
-    if (observe_mode == Camera::ObserveMode::Chase || observe_mode == Camera::ObserveMode::Roaming ||
-        observe_mode == Camera::ObserveMode::Fixed)
-    {
-        auto has_updated = false;
-        ObserveEvent observe_event;
-
-        QAngle current_angles;
-
-        if (observe_mode != Camera::ObserveMode::Fixed)
-            m_plugin.interfaces().engine_client().GetViewAngles(current_angles);
-        else
-            current_angles = m_plugin.camera().camera().camera_angle;
-
-        if (!QAnglesAreEqual(current_angles, m_previous_camera_angles, 0.05f))
-        {
-            has_updated = true;
-            observe_event.angle = current_angles;
-
-            m_previous_camera_angles = current_angles;
-        }
-
-        if (observe_mode != Camera::ObserveMode::Chase)
-        {
-            auto current_position = m_plugin.camera().camera().camera_origin;
-
-            if (!VectorsAreEqual(current_position, m_previous_camera_position, 0.05f))
-            {
-                has_updated = true;
-
-                observe_event.position = current_position;
-                m_previous_camera_position = current_position;
-            }
-        }
-
-        if (has_updated)
-            send(observe_event);
-    }
 }
 
 void Server::on_add_entity(Badge<EntityListener>, IHandleEntity& handle_entity, CBaseHandle)

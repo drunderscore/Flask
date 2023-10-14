@@ -310,8 +310,6 @@ private:
     void* m_game_rules{};
     void* m_player_resource{};
     bool m_previous_pause{};
-    QAngle m_previous_camera_angles;
-    Vector m_previous_camera_position;
 
     Player create_player_from_user_id(uint8_t);
 
