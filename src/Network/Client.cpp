@@ -91,7 +91,16 @@ void Client::pump_pending_messages()
 void Client::send(const nlohmann::json& message)
 {
     auto should_begin_pumping = m_pending_messages_to_send.empty();
-    m_pending_messages_to_send.push(message.dump());
+
+    try
+    {
+        m_pending_messages_to_send.push(message.dump());
+    }
+    catch (const std::exception& ex)
+    {
+        misbehave(ex.what());
+        return;
+    }
 
     if (should_begin_pumping)
         pump_pending_messages();
