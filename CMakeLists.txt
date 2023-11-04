@@ -17,8 +17,37 @@ elseif (WIN32)
     add_compile_options(/MT)
 endif ()
 
+set(protobuf_BUILD_TESTS OFF)
+
+# FIXME: This probably means that Windows will not have zlib support for protobuf
+#        but I'm not sure our messages are large enough individually to warrant it
+#        at the moment.
+if (UNIX)
+    set(ZLIB_LIBRARY /usr/lib32/libz.so)
+    find_package(ZLIB REQUIRED COMPONENTS)
+    set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION_RELEASE ${ZLIB_LIBRARY})
+    set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION ${ZLIB_LIBRARY})
+endif ()
+
+add_subdirectory(protobuf)
 add_subdirectory(spdlog)
 add_subdirectory(JMP)
+
+include(protobuf/cmake/protobuf-generate.cmake)
+
+set(PROTO_SOURCE_DIR src/Protocol)
+add_library(FlaskNetworkProtocol OBJECT ${PROTO_SOURCE_DIR}/flask.proto)
+target_link_libraries(FlaskNetworkProtocol PUBLIC protobuf::libprotobuf)
+
+set(GENERATED_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+set(PROTO_BINARY_DIR ${GENERATED_BINARY_DIR}/Protocol)
+
+target_include_directories(FlaskNetworkProtocol PUBLIC "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>")
+
+protobuf_generate(
+        TARGET FlaskNetworkProtocol
+        IMPORT_DIRS ${PROTO_SOURCE_DIR}
+        PROTOC_OUT_DIR ${PROTO_BINARY_DIR})
 
 add_library(Flask SHARED
         src/DataTableHelper.cpp
@@ -38,6 +67,8 @@ add_library(Flask SHARED
         src/Modules/Interfaces.cpp
         src/Modules/NetworkCache.cpp
         src/Modules/Server.cpp
+
+        src/Protocol/Flask.cpp
 )
 
 # FIXME: Rebasing/merging alliedmodders/hl2sdk into drunderscore/hl2sdk got us the VScript changes, but it also got us
@@ -45,7 +76,7 @@ add_library(Flask SHARED
 #        On it's own it's not that problematic, but it means that ALL of my code will also be compiled with
 #        -fpermissive, which isn't desirable at all.
 if (UNIX)
-    target_compile_options(Flask PRIVATE -fpermissive)
+    target_compile_options(Flask PRIVATE -fpermissive -iquote ${HL2SDK_PATH}/public/tier1)
 endif ()
 
 target_compile_definitions(Flask PRIVATE
@@ -53,22 +84,19 @@ target_compile_definitions(Flask PRIVATE
 )
 
 target_include_directories(Flask SYSTEM PRIVATE
-        json/single_include
-
         ${HL2SDK_PATH}/common
         ${HL2SDK_PATH}/public
         ${HL2SDK_PATH}/public/engine
         ${HL2SDK_PATH}/public/mathlib
         ${HL2SDK_PATH}/public/vstdlib
         ${HL2SDK_PATH}/public/tier0
-        ${HL2SDK_PATH}/public/tier1
         ${HL2SDK_PATH}/public/game/server
 
         JMP/src
 
         ${BOOST_INCLUDE_DIRECTORY}
+        ${GENERATED_BINARY_DIR}
 )
-
 
 # Technically not Linux, but no one is building this on APPLE
 if (UNIX)
@@ -93,6 +121,7 @@ if (UNIX)
     target_include_directories(Flask SYSTEM PRIVATE FakeBoostAsio)
 elseif (WIN32)
     target_compile_definitions(Flask PRIVATE WIN32_LEAN_AND_MEAN)
+    target_include_directories(Flask PRIVATE ${HL2SDK_PATH}/public/tier1)
 endif ()
 
 target_link_directories(Flask PRIVATE ${TF2_PATH}/bin)
@@ -109,4 +138,4 @@ elseif (WIN32)
 
 endif ()
 
-target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP)
+target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol)

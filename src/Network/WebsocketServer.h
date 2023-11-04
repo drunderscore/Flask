@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Badge.h"
+#include "../Protocol/Flask.h"
 #include "Client.h"
 #include <boost/asio/io_context.hpp>
 #include <cstdint>
@@ -15,14 +16,13 @@ public:
     void accept();
     void did_client_die(Badge<Client>, Client&);
 
-    virtual void did_receive_command(Badge<Client>, std::string_view command, const nlohmann::json&) = 0;
-    virtual void did_client_listen_to_event(Badge<Client>, Client&, std::string_view event_name) = 0;
+    virtual void did_receive_command(Badge<Client>, const Protocol::Command&) = 0;
+    virtual void did_client_listen_to_event(Badge<Client>, Client&, Protocol::Event::DataCase) = 0;
 
     virtual void on_client_connected(Badge<Client>, Client&) = 0;
 
 protected:
-    template<typename TEvent>
-    void send(const TEvent& event)
+    void send(const Protocol::Event& event)
     {
         for (auto& client : m_clients)
             client->send(event);

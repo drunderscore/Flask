@@ -11,10 +11,10 @@
 #include "Modules/Server.h"
 #include "Structures/IVEngineClient.h"
 #include "Tier0Logger.h"
+#include "tier1.h"
 #include <JMP/Platform.h>
 #include <con_nprint.h>
 #include <spdlog/spdlog.h>
-#include <tier1.h>
 
 using namespace std::string_view_literals;
 

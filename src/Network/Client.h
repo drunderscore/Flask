@@ -3,11 +3,11 @@
 #include "../Badge.h"
 #include "Forward.h"
 #undef clamp
+#include "../Protocol/Flask.h"
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core/flat_buffer.hpp>
 #include <boost/beast/core/tcp_stream.hpp>
 #include <boost/beast/websocket/stream.hpp>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <queue>
 #include <set>
@@ -23,25 +23,17 @@ public:
 
     const auto& initial_remote_endpoint_for_logging() const { return m_initial_endpoint_for_logging; }
 
-    template<typename TEvent>
-    void send(const TEvent& event)
-    {
-        if (!m_listening_events.contains(event.s_event_name))
-            return;
-
-        nlohmann::json event_serialized_to_json = event;
-        event_serialized_to_json["event"] = event.s_event_name;
-        send(event_serialized_to_json);
-    }
+    void send(const Protocol::Event&);
 
 private:
+    void send(const std::string& message);
+
     void read();
-    void send(const nlohmann::json& message);
     void pump_pending_messages();
 
     void misbehave(std::string_view reason);
 
-    void on_message(nlohmann::json message);
+    void on_command(const Protocol::Command&);
 
     WebsocketServer& m_server;
     boost::beast::websocket::stream<boost::beast::tcp_stream> m_websocket;
@@ -49,6 +41,6 @@ private:
     std::queue<std::string> m_pending_messages_to_send;
     // The initial endpoint, intended to be used for logging purposes only.
     boost::asio::ip::tcp::endpoint m_initial_endpoint_for_logging;
-    std::set<std::string, std::less<>> m_listening_events;
+    std::set<Protocol::Event::DataCase> m_listening_events;
 };
 }

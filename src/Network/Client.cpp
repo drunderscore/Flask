@@ -1,7 +1,6 @@
 #include "Client.h"
 #include "WebsocketServer.h"
 #include <boost/lexical_cast.hpp>
-#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
 using namespace std::string_view_literals;
@@ -24,6 +23,7 @@ Client::Client(boost::beast::net::ip::tcp::socket&& socket, WebsocketServer& ser
         }
         else
         {
+            m_websocket.binary(true);
             m_server.on_client_connected({}, *this);
             read();
         }
@@ -44,20 +44,16 @@ void Client::read()
         }
         else
         {
-            std::string_view message(static_cast<const char*>(m_read_buffer.cdata().data()), bytes_received);
-            nlohmann::json json_message;
+            std::string_view data(static_cast<const char*>(m_read_buffer.cdata().data()), bytes_received);
+            Protocol::Command command;
 
-            try
+            if (!command.ParseFromString(data))
             {
-                json_message = nlohmann::json::parse(message);
-            }
-            catch (const std::exception& ex)
-            {
-                misbehave(ex.what());
+                misbehave("Failed to parse command");
                 return;
             }
 
-            on_message(std::move(json_message));
+            on_command(command);
         }
 
         m_read_buffer.clear();
@@ -88,22 +84,22 @@ void Client::pump_pending_messages()
         });
 }
 
-void Client::send(const nlohmann::json& message)
+void Client::send(const std::string& message)
 {
     auto should_begin_pumping = m_pending_messages_to_send.empty();
 
-    try
-    {
-        m_pending_messages_to_send.push(message.dump());
-    }
-    catch (const std::exception& ex)
-    {
-        misbehave(ex.what());
-        return;
-    }
+    m_pending_messages_to_send.push(message);
 
     if (should_begin_pumping)
         pump_pending_messages();
+}
+
+void Client::send(const Protocol::Event& event)
+{
+    if (!m_listening_events.contains(event.data_case()))
+        return;
+
+    send(event.SerializeAsString());
 }
 
 void Client::misbehave(std::string_view reason)
@@ -115,45 +111,51 @@ void Client::misbehave(std::string_view reason)
                             [this](auto error) { m_server.did_client_die({}, *this); });
 }
 
-void Client::on_message(nlohmann::json message)
+void Client::on_command(const Protocol::Command& command)
 {
-    if (!message.is_object())
+    if (command.has_listen())
     {
-        misbehave("Got non-object JSON message");
-        return;
-    }
+        auto& listen = command.listen();
 
-    if (!message.contains("command"))
-    {
-        misbehave("Got message without a command");
-        return;
-    }
-
-    auto& command_value = message.at("command");
-    if (!command_value.is_string())
-    {
-        misbehave("Got a message with a command that isn't a string");
-        return;
-    }
-
-    auto command = command_value.get<std::string_view>();
-
-    try
-    {
-        if (command == "listen"sv)
+        // First, look up the event's descriptor by name.
+        auto event_descriptor = Protocol::Event::GetDescriptor()->FindFieldByName(listen.event_name());
+        if (!event_descriptor)
         {
-            auto event_name = message.at("value").get<std::string>();
-            m_listening_events.insert(event_name);
-            m_server.did_client_listen_to_event({}, *this, event_name);
+            misbehave("Tried to listen to unknown event");
+            return;
         }
-        else
+
+        // Next, find the oneof it is a part of.
+        auto containing_oneof = event_descriptor->containing_oneof();
+        if (!containing_oneof)
         {
-            m_server.did_receive_command({}, command, message);
+            misbehave("Tried to listen to event that does not reside in oneof");
+            return;
         }
+
+        // Next, make sure it is in the correct oneof.
+        if (containing_oneof->full_name() != "flask.protocol.Event.data"sv)
+        {
+            misbehave("Tried to listen to event that does not reside in the correct oneof");
+            return;
+        }
+
+        // Okay, this looks like a valid event.
+        auto event_data_case = static_cast<Protocol::Event::DataCase>(event_descriptor->index_in_oneof() + 1);
+
+        // Next, make sure we aren't already supposed to be listening to this event.
+        if (m_listening_events.contains(event_data_case))
+        {
+            misbehave("Tried to listen to event we are already listening to");
+            return;
+        }
+
+        m_listening_events.insert(event_data_case);
+        m_server.did_client_listen_to_event({}, *this, event_data_case);
     }
-    catch (const std::exception& ex)
+    else
     {
-        misbehave(ex.what());
+        m_server.did_receive_command({}, command);
     }
 }
 }

@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package flask.protocol;
+
+message Vector {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message Player {
+  int32 user_id = 1;
+  int32 entity_id = 2;
+  string name = 3;
+  uint32 team = 4;
+}
+
+message PlayerDeath {
+  enum Crit {
+    NONE = 0;
+    MINI = 1;
+    FULL = 2;
+  }
+
+  Player attacker = 1;
+  Player victim = 2;
+  Player assister = 3;
+  string weapon_classname = 4;
+  string weapon_name = 5;
+  int32 weapon_id = 6;
+  int32 weapon_definition_index = 7;
+  Crit crit = 8;
+  bool medic_charged = 9;
+}
+
+message Observe {
+  enum Mode {
+    NONE = 0;
+    DEATH_CAM = 1;
+    FREEZE_CAM = 2;
+    FIXED = 3;
+    IN_EYE = 4;
+    CHASE = 5;
+    POI = 6;
+    ROAMING = 7;
+  };
+
+  optional uint32 target = 1;
+  optional Mode mode = 2;
+  optional Vector position = 3;
+  optional Vector angle = 4;
+  optional float distance = 5;
+}
+
+message UserInteraction {
+  string value = 1;
+}
+
+message ObjectDestroyed {
+  Player owner = 1;
+  Player attacker = 2;
+  uint32 object_type = 3;
+  int32 entity_id = 4;
+  string weapon = 5;
+}
+
+message PlayerHurt {
+  Player victim = 1;
+  Player attacker = 2;
+  uint32 health = 3;
+  uint32 damage = 4;
+  bool crit = 5;
+  bool mini_crit = 6;
+  uint32 weapon_id = 7;
+}
+
+message TimerUpdate {
+  optional uint32 team = 1;
+  float end_time = 2;
+  bool is_paused = 3;
+  float time_remaining = 4;
+}
+
+message GameRulesUpdate {
+  optional uint32 round_state = 1;
+  optional bool in_setup = 2;
+  optional float map_reset_time = 3;
+  optional float countdown_time = 4;
+
+  // TF Game rules
+  optional uint32 game_type = 5;
+  optional bool playing_koth = 6;
+}
+
+message TeamUpdate {
+  uint32 team = 1;
+  uint32 score = 2;
+}
+
+message PlayerUpdate
+{
+  uint32 index = 1;
+
+  optional string name = 2;
+  optional fixed64 steam_id = 3;
+
+  optional uint32 team = 4;
+  optional int32 health = 5;
+  optional int32 max_health = 6;
+  optional uint32 class = 7;
+  optional float next_respawn_time = 8;
+  optional uint32 life_state = 9;
+  optional float charge_level = 10;
+
+  message Weapon
+  {
+    optional uint32 definition_index = 1;
+    optional int32 clip = 2;
+  };
+
+  Weapon weapon = 11;
+
+  // FIXME: This is a meta-field used by Flask to re-send a weapon, not part of the protocol.
+  //        Probably should be removed.
+  bool active_weapon_changed = 12;
+
+  message Statistics
+  {
+    optional uint32 kills = 1;
+    optional uint32 deaths = 2;
+    optional uint32 assists = 3;
+  };
+
+  Statistics statistics = 13;
+};
+
+message PlayerRemove {
+  uint32 index = 1;
+}
+
+message ConVarUpdate {
+  string name = 1;
+  string value = 2;
+}
+
+message WeaponUpdate {
+  optional float charge_level = 1;
+  optional int32 clip = 2;
+}
+
+message Tick {
+  uint32 count = 1;
+  bool is_paused = 2;
+}
+
+message Listen {
+  string event_name = 1;
+}
+
+message Execute {
+  string command = 1;
+}
+
+message Event {
+  oneof data {
+    PlayerDeath player_death = 1;
+    Observe observe = 2;
+    UserInteraction user_interaction = 3;
+    ObjectDestroyed object_destroyed = 4;
+    PlayerHurt player_hurt = 5;
+    TimerUpdate timer_update = 6;
+    GameRulesUpdate game_rules_update = 7;
+    TeamUpdate team_update = 8;
+    PlayerUpdate player_update = 9;
+    PlayerRemove player_remove = 10;
+    ConVarUpdate con_var_update = 11;
+    WeaponUpdate weapon_update = 12;
+    Tick tick = 13;
+    bool shutdown = 14;
+  }
+}
+
+message Command {
+  oneof data {
+    Listen listen = 1;
+    Execute execute = 2;
+    Observe observe = 3;
+  }
+}

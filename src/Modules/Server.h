@@ -3,6 +3,7 @@
 #include "../Forward.h"
 #include "../ManagedConCommand.h"
 #include "../Network/WebsocketServer.h"
+#include "../Protocol/Flask.h"
 #include "Camera.h"
 #include "Forward.h"
 #include <array>
@@ -10,7 +11,6 @@
 #include <igameevents.h>
 #include <map>
 #include <set>
-#include <string>
 #include <string_view>
 
 class IHandleEntity;
@@ -23,8 +23,8 @@ public:
     explicit Server(Plugin&);
     ~Server() override;
 
-    void did_receive_command(Badge<Flask::Network::Client>, std::string_view command, const nlohmann::json&) override;
-    void did_client_listen_to_event(Badge<Network::Client>, Network::Client&, std::string_view event_name) override;
+    void did_receive_command(Badge<Flask::Network::Client>, const Protocol::Command&) override;
+    void did_client_listen_to_event(Badge<Network::Client>, Network::Client&, Protocol::Event::DataCase) override;
 
     void on_client_connected(Badge<Network::Client>, Network::Client&) override;
 
@@ -36,202 +36,6 @@ public:
 
     void on_add_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle);
     void on_remove_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle);
-
-    struct Player
-    {
-        int user_id;
-        int entity_id;
-        std::string name;
-        uint8_t team;
-    };
-
-    struct PlayerDeathEvent
-    {
-        Player attacker;
-        Player victim;
-        std::optional<Player> assister;
-        std::string weapon_classname;
-        std::string weapon_name;
-        int weapon_id;
-        int weapon_definition_index;
-        std::string crit_type;
-        bool medic_charged;
-
-        static constexpr std::string_view s_event_name = "player_death";
-    };
-
-    struct ObserveEvent
-    {
-        std::optional<uint32_t> target;
-        std::optional<Camera::ObserveMode> mode;
-        std::optional<Vector> position;
-        std::optional<QAngle> angle;
-        std::optional<float> distance;
-
-        static constexpr std::string_view s_event_name = "observe";
-    };
-
-    struct UserInteractionEvent
-    {
-        std::string data;
-
-        static constexpr std::string_view s_event_name = "user_interaction";
-    };
-
-    // NOTE: This is missing the information about the assisting player, but it isn't truly all that important.
-    struct ObjectDestroyedEvent
-    {
-        Player owner;
-        Player attacker;
-        uint8_t object_type;
-        int entity_id;
-        std::string weapon;
-
-        static constexpr std::string_view s_event_name = "object_destroyed";
-    };
-
-    struct PlayerHurtEvent
-    {
-        Player victim;
-        Player attacker;
-        uint16_t health;
-        uint16_t damage;
-        bool crit;
-        bool mini_crit;
-        uint16_t weapon_id;
-
-        static constexpr std::string_view s_event_name = "player_hurt";
-    };
-
-    struct TickCountUpdateEvent
-    {
-        uint32_t value;
-        bool is_paused;
-
-        static TickCountUpdateEvent create(Plugin&);
-
-        static constexpr std::string_view s_event_name = "tick_count";
-    };
-
-    struct TimerUpdateEvent
-    {
-        // If no team, then this is the round timer.
-        std::optional<uint8_t> team;
-        float end_time;
-        bool is_paused;
-        float time_remaining;
-
-        static TimerUpdateEvent from_entity(Plugin&, void*);
-
-        static constexpr std::string_view s_event_name = "timer_update";
-    };
-
-    struct ShutdownEvent
-    {
-        static constexpr std::string_view s_event_name = "shutdown";
-    };
-
-    struct GameRulesUpdateEvent
-    {
-        // Teamplay round-based game rules
-        std::optional<uint32_t> round_state;
-        std::optional<bool> in_setup;
-        std::optional<float> map_reset_time;
-        std::optional<float> countdown_time;
-
-        // TF Game rules
-        std::optional<uint32_t> game_type;
-        std::optional<bool> playing_koth;
-
-        static constexpr std::string_view s_event_name = "game_rules_update";
-    };
-
-    struct TeamUpdateEvent
-    {
-        uint8_t team;
-        uint32_t score;
-
-        static TeamUpdateEvent from_entity(Plugin&, void*);
-
-        static constexpr std::string_view s_event_name = "team_update";
-    };
-
-    struct PlayerUpdateEvent
-    {
-        uint8_t index;
-
-        std::optional<std::string> name;
-        std::optional<uint64_t> steam_id;
-
-        std::optional<uint8_t> team;
-        std::optional<int> health;
-        std::optional<int> max_health;
-        std::optional<uint8_t> class_;
-        std::optional<float> next_respawn_time;
-        std::optional<uint8_t> life_state;
-        std::optional<float> charge_level;
-
-        struct Weapon
-        {
-            std::optional<uint16_t> definition_index;
-            std::optional<int> clip;
-
-            static Weapon from_entity(Plugin&, void*);
-        };
-
-        // We only transmit the active weapon.
-        std::optional<Weapon> weapon;
-        bool active_weapon_changed{};
-
-        struct Statistics
-        {
-            std::optional<uint32_t> kills;
-            std::optional<uint32_t> deaths;
-            std::optional<uint32_t> assists;
-
-            static Statistics create(Server&, void* player);
-        };
-
-        std::optional<Statistics> statistics;
-        Statistics& get_or_create_statistics()
-        {
-            if (!statistics)
-                statistics = {Statistics{}};
-
-            return *statistics;
-        }
-
-        static constexpr std::string_view s_event_name = "player_update";
-    };
-
-    struct PlayerRemoveEvent
-    {
-        uint8_t index;
-
-        static constexpr std::string_view s_event_name = "player_remove";
-    };
-
-    struct ConVarUpdateEvent
-    {
-        std::string name;
-        std::string value;
-
-        static constexpr std::string_view s_event_name = "convar_update";
-    };
-
-    struct ObserveCommand : public ObserveEvent
-    {
-        bool snap_distance{};
-
-        static constexpr std::string_view s_command_name = "observe";
-    };
-
-    struct ExecuteCommandCommand
-    {
-        std::string value;
-
-        static constexpr std::string_view s_command_name = "execute_command";
-    };
 
     // C_PlayerResource (and it's TF inheritor, C_TFPlayerResource) store player variables we care about in arrays,
     // separate from the player entity. This is probably done in such a way so that all clients have access to certain
@@ -283,9 +87,9 @@ private:
 
     std::set<uint32_t> m_pending_timer_updates;
     std::set<uint32_t> m_pending_team_updates;
-    std::optional<GameRulesUpdateEvent> m_pending_game_rules_update;
+    std::optional<Protocol::GameRulesUpdate*> m_pending_game_rules_update;
 
-    std::map<uint8_t, PlayerUpdateEvent> m_pending_player_updates;
+    std::map<uint8_t, Protocol::PlayerUpdate*> m_pending_player_updates;
     std::map<uint32_t, WeaponUpdate> m_pending_weapon_updates;
     std::optional<PreviousPlayerResource> m_previous_player_resource;
 
@@ -297,22 +101,48 @@ private:
         return *m_previous_player_resource;
     }
 
-    GameRulesUpdateEvent& get_or_create_pending_game_rules_update()
+    Protocol::GameRulesUpdate& get_or_create_pending_game_rules_update()
     {
         if (!m_pending_game_rules_update)
-            m_pending_game_rules_update = {GameRulesUpdateEvent{}};
+            m_pending_game_rules_update = new Protocol::GameRulesUpdate;
 
-        return *m_pending_game_rules_update;
+        return **m_pending_game_rules_update;
     }
 
-    std::optional<float> get_charge_level_for_player(void*);
-    void* get_score_data_for_player(void*);
+    Protocol::PlayerUpdate& get_or_create_pending_player_update(uint8_t index)
+    {
+        if (auto it = m_pending_player_updates.find(index); it != m_pending_player_updates.end())
+            return *it->second;
+
+        auto player_update = new Protocol::PlayerUpdate;
+        m_pending_player_updates.insert({index, player_update});
+        return *player_update;
+    }
+
+    Protocol::PlayerUpdate_Statistics get_or_create_pending_player_update_statistics(uint8_t index)
+    {
+        auto& player_update = get_or_create_pending_player_update(index);
+
+        if (!player_update.has_statistics())
+            player_update.set_allocated_statistics(new Protocol::PlayerUpdate_Statistics);
+
+        return player_update.statistics();
+    }
+
+    std::optional<float> get_charge_level_for_player(void*) const;
+    void* get_score_data_for_player(void*) const;
+
+    Protocol::Tick* create_tick() const;
+    Protocol::TimerUpdate* create_timer_update(void* timer) const;
+    Protocol::TeamUpdate* create_team_update(void* team) const;
+    Protocol::PlayerUpdate_Weapon* create_player_update_weapon(void* weapon_data_table) const;
+    Protocol::PlayerUpdate_Statistics* create_player_update_statistics(void* player) const;
+
+    Protocol::Player* create_player_from_user_id(uint8_t user_id) const;
 
     void* m_game_rules{};
     void* m_player_resource{};
     bool m_previous_pause{};
-
-    Player create_player_from_user_id(uint8_t);
 
     // TODO: In the future, we should not define this list ourselves, but rather the client should tell us which convars
     //       it is interested in.
@@ -320,27 +150,4 @@ private:
     static void flask_network_client_list(const CCommand&);
     static void flask_send_user_interaction(const CCommand&);
 };
-
-// This structure has an optional in it, which nlohammn JSON still can't handle...
-void to_json(nlohmann::json&, const Server::PlayerDeathEvent&);
-void to_json(nlohmann::json&, const Server::TimerUpdateEvent&);
-void to_json(nlohmann::json&, const Server::GameRulesUpdateEvent&);
-void to_json(nlohmann::json&, const Server::PlayerUpdateEvent::Statistics&);
-void to_json(nlohmann::json&, const Server::PlayerUpdateEvent&);
-void to_json(nlohmann::json&, const Server::ObserveEvent&);
-inline void to_json(nlohmann::json&, const Server::ShutdownEvent&) {}
-
-void from_json(const nlohmann::json&, Server::ObserveCommand&);
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::Player, user_id, entity_id, name, team);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::UserInteractionEvent, data);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ObjectDestroyedEvent, owner, attacker, object_type, entity_id, weapon);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerHurtEvent, victim, attacker, health, damage, crit, mini_crit,
-                                   weapon_id);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TickCountUpdateEvent, value, is_paused);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::TeamUpdateEvent, team, score);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::PlayerRemoveEvent, index);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ConVarUpdateEvent, name, value);
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Server::ExecuteCommandCommand, value);
 }

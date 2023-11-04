@@ -5,9 +5,9 @@
 [submodule "spdlog"]
 	path = spdlog
 	url = https://github.com/gabime/spdlog
-[submodule "json"]
-	path = json
-	url = https://github.com/nlohmann/json
 [submodule "JMP"]
 	path = JMP
 	url = https://github.com/drunderscore/JMP
+[submodule "protobuf"]
+	path = protobuf
+	url = https://github.com/protocolbuffers/protobuf/
