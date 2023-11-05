@@ -1,0 +1,72 @@
+name: Build for Windows
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Set reusable strings
+      # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        echo "boost-version=1.80.0" >> "$GITHUB_OUTPUT"
+
+    - name: Install MSVC Developer Command Prompt
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+
+    - name: Install Boost
+      id: install-boost
+      uses: MarkusJx/install-boost@v2.4.4
+      if: steps.restore-boost-from-cache.outputs.cache-hit != 'true'
+      with:
+          boost_version: ${{ steps.strings.outputs.boost-version }}
+          boost_install_dir: C:\Program Files
+          platform_version: 2022
+          toolset: msvc
+
+    - name: Install ninja
+      uses: seanmiddleditch/gha-setup-ninja@master
+
+    - name: Perform Build
+      run: |
+        mkdir ${{ steps.strings.outputs.build-output-dir }}
+        cd ${{ steps.strings.outputs.build-output-dir }}
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -S ${{ github.workspace }} -DCMAKE_CXX_COMPILER=cl -DCMAKE_C_COMPILER=cl -DBOOST_INCLUDE_DIRECTORY="${{ steps.install-boost.outputs.BOOST_ROOT }}/include"
+        ninja
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: output
+        path: |
+          ${{ steps.strings.outputs.build-output-dir }}/Flask.dll
+          ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb
+
+    - name: Setup Sentry CLI
+      uses: mathieu-bour/setup-sentry-cli@v1
+      if: ${{ github.event_name }} == 'push'
+      with:
+        version: 2.21.2
+        token: ${{ SECRETS.SENTRY_TOKEN }} # from GitHub secrets
+        organization: the-james-multiverse
+        project: flask
+
+    - name: Upload Debug Symbols to Sentry
+      if: ${{ github.event_name }} == 'push'
+      run: |
+        sentry-cli debug-files check ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb
+        sentry-cli debug-files upload ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb

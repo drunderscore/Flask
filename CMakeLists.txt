@@ -4,6 +4,8 @@ project(Flask)
 
 set(HL2SDK_PATH ${PROJECT_SOURCE_DIR}/hl2sdk)
 set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
+set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
+set(BOOST_INCLUDE_DIRECTORY "C:/Program Files/boost_1_80_0" ON CACHE STRING "Path to the Boost includes")
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -63,6 +65,8 @@ target_include_directories(Flask SYSTEM PRIVATE
         ${HL2SDK_PATH}/public/game/server
 
         JMP/src
+
+        ${BOOST_INCLUDE_DIRECTORY}
 )
 
 
@@ -89,9 +93,6 @@ if (UNIX)
     target_include_directories(Flask SYSTEM PRIVATE FakeBoostAsio)
 elseif (WIN32)
     target_compile_definitions(Flask PRIVATE WIN32_LEAN_AND_MEAN)
-    # Doesn't look like we need FakeBoostAsio changes on Windows, it works without them...
-    # This Boost path is the one recommended by the developers.
-    target_include_directories(Flask SYSTEM PRIVATE "C:/Program Files/boost_1_80_0")
 endif ()
 
 target_link_directories(Flask PRIVATE ${TF2_PATH}/bin)

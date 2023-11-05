@@ -6,6 +6,7 @@
 #include "EntityEnumerator.h"
 #include "Interfaces.h"
 #include "NetworkCache.h"
+#include <algorithm>
 #include <client_class.h>
 #include <icliententity.h>
 #include <ivdebugoverlay.h>
