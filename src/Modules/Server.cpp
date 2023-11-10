@@ -549,10 +549,11 @@ Protocol::Player* Server::create_player_from_user_id(uint8_t user_id) const
     auto& base_entity_team_number_property =
         *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseEntity", "m_iTeamNum");
 
-    auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_index);
+    int team = 0;
 
-    auto team = *DataTableHelper::get_property_value_from_object<int>(entity->GetDataTableBasePtr(),
-                                                                      base_entity_team_number_property);
+    if (auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_index))
+        team = *DataTableHelper::get_property_value_from_object<int>(entity->GetDataTableBasePtr(),
+                                                                     base_entity_team_number_property);
 
     auto player = new Protocol::Player;
 
