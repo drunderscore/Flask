@@ -2,7 +2,7 @@ name: Build for Windows
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "development-windows-build" ]
   pull_request:
     branches: [ "master" ]
 
@@ -58,7 +58,7 @@ jobs:
 
     - name: Setup Sentry CLI
       uses: mathieu-bour/setup-sentry-cli@v1
-      if: github.event_name == 'push'
+      if: github.event_name == 'push' && github.ref_name == 'master'
       with:
         version: 2.21.2
         token: ${{ SECRETS.SENTRY_TOKEN }} # from GitHub secrets
@@ -66,7 +66,7 @@ jobs:
         project: flask
 
     - name: Upload Debug Symbols to Sentry
-      if: github.event_name == 'push'
+      if: github.event_name == 'push' && github.ref_name == 'master'
       run: |
         sentry-cli debug-files check ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb
         sentry-cli debug-files upload ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb
