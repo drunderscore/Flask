@@ -7,6 +7,7 @@ class Camera;
 class DataTableChangeListener;
 class EntityEnumerator;
 class EntityListener;
+class ErrorReporting;
 class GameSystem;
 class HideRespawnRoomVisualizers;
 class Interfaces;

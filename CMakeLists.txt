@@ -5,6 +5,7 @@ project(Flask)
 set(HL2SDK_PATH ${PROJECT_SOURCE_DIR}/hl2sdk)
 set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
 set(BOOST_INCLUDE_DIRECTORY "C:/Program Files/boost_1_80_0" ON CACHE STRING "Path to the Boost includes")
+set(FLASK_DEVELOPMENT OFF CACHE STRING "Building Flask during development")
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -28,6 +29,18 @@ if (UNIX)
     set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION ${ZLIB_LIBRARY})
 endif ()
 
+if (UNIX)
+    set(CURL_LIBRARY /usr/lib32/libcurl.so)
+    find_package(CURL REQUIRED COMPONENTS AsynchDNS)
+    set_target_properties(CURL::libcurl PROPERTIES IMPORTED_LOCATION_RELEASE ${CURL_LIBRARY})
+    get_target_property(fuck CURL::libcurl IMPORTED_LOCATION_DEBUG)
+endif ()
+
+# Use breakpad on all platforms
+# Linux uses breakpad by default, but Windows uses crashpad by default (in-process vs. out-of-process)
+set(SENTRY_BACKEND breakpad)
+
+add_subdirectory(sentry-native)
 add_subdirectory(protobuf)
 add_subdirectory(spdlog)
 add_subdirectory(JMP)
@@ -48,6 +61,10 @@ protobuf_generate(
         IMPORT_DIRS ${PROTO_SOURCE_DIR}
         PROTOC_OUT_DIR ${PROTO_BINARY_DIR})
 
+include(cmake/GetGitRevisionDescription.cmake)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+string(SUBSTRING ${GIT_SHA1} 0 7 GIT_SHA1_SHORT)
+
 add_library(Flask SHARED
         src/DataTableHelper.cpp
         src/Flask.cpp
@@ -61,6 +78,7 @@ add_library(Flask SHARED
         src/Modules/DataTableChangeListener.cpp
         src/Modules/EntityEnumerator.cpp
         src/Modules/EntityListener.cpp
+        src/Modules/ErrorReporting.cpp
         src/Modules/GameSystem.cpp
         src/Modules/HideRespawnRoomVisualizers.cpp
         src/Modules/Interfaces.cpp
@@ -80,7 +98,12 @@ endif ()
 
 target_compile_definitions(Flask PRIVATE
         CLIENT_DLL
+        FLASK_GIT_SHA1="${GIT_SHA1_SHORT}"
 )
+
+if (FLASK_DEVELOPMENT)
+    target_compile_definitions(Flask PRIVATE FLASK_DEVELOPMENT)
+endif ()
 
 target_include_directories(Flask SYSTEM PRIVATE
         ${HL2SDK_PATH}/common
@@ -129,12 +152,12 @@ if (UNIX)
     set_target_properties(Flask PROPERTIES PREFIX "")
 
     target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/linux)
-    target_link_libraries(Flask PRIVATE -l:tier1_i486.a)
-
+    target_link_libraries(Flask PRIVATE -l:tier1_i486.a steam_api)
 elseif (WIN32)
     target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/public)
-    target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions)
-
+    # The steam_api.lib provided by hl2sdk is outdated, and if we provide one it'll conflict with the existing one.
+    # So we'll use an absolute path to it on Windows.
+    target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions ${CMAKE_SOURCE_DIR}/Libraries/Windows/steam_api.lib)
 endif ()
 
-target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol)
+target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol sentry::sentry)

@@ -21,7 +21,12 @@ public:
     void Unload() override;
     void Pause() override {}
     void UnPause() override {}
-    const char* GetPluginDescription() override { return "Flask"; }
+    const char* GetPluginDescription() override
+    {
+        // clang-format off
+        return "Flask" " " FLASK_GIT_SHA1;
+        // clang-format on
+    }
     void LevelInit(char const*) override {}
     void ServerActivate(edict_t*, int, int) override {}
     void GameFrame(bool) override {}
@@ -52,11 +57,14 @@ public:
 
     static std::string_view s_client_library_name;
 
+    static std::string_view s_git_revision;
+
     boost::asio::io_context& io_context() { return *m_io_context; }
 
     // These _should_ return const references, but the Source interfaces don't have a ton of const correctness, so it
     // only results in many const_casts... so do without it.
     Modules::Interfaces& interfaces() { return *m_interfaces; }
+    Modules::ErrorReporting& error_reporting() { return *m_error_reporting; }
     Modules::NetworkCache& network_cache() { return *m_network_cache; }
     Modules::EntityListener& entity_listener() { return *m_entity_listener; }
     Modules::HideRespawnRoomVisualizers& hide_respawn_room_visualizers() { return *m_hide_respawn_room_visualizer; }
@@ -74,6 +82,7 @@ private:
     std::span<uint8_t> m_client_library_bytes;
 
     std::unique_ptr<Modules::Interfaces> m_interfaces;
+    std::unique_ptr<Modules::ErrorReporting> m_error_reporting;
     std::unique_ptr<Modules::NetworkCache> m_network_cache;
     std::unique_ptr<Modules::EntityListener> m_entity_listener;
     std::unique_ptr<Modules::HideRespawnRoomVisualizers> m_hide_respawn_room_visualizer;

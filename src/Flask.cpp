@@ -4,6 +4,7 @@
 #include "Modules/DataTableChangeListener.h"
 #include "Modules/EntityEnumerator.h"
 #include "Modules/EntityListener.h"
+#include "Modules/ErrorReporting.h"
 #include "Modules/GameSystem.h"
 #include "Modules/HideRespawnRoomVisualizers.h"
 #include "Modules/Interfaces.h"
@@ -29,6 +30,8 @@ std::string_view Plugin::s_client_library_name = "tf/bin/client.so";
 #elif _WIN32
 std::string_view Plugin::s_client_library_name = "tf/bin/client.dll";
 #endif
+
+std::string_view Plugin::s_git_revision = FLASK_GIT_SHA1;
 
 bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_server_factory)
 {
@@ -63,6 +66,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         m_io_context = std::make_unique<boost::asio::io_context>();
 
         m_interfaces = std::make_unique<Modules::Interfaces>(interface_factory, game_server_factory);
+        m_error_reporting = std::make_unique<Modules::ErrorReporting>(*this);
         m_network_cache = std::make_unique<Modules::NetworkCache>(*this);
         m_entity_listener = std::make_unique<Modules::EntityListener>(*this);
         m_hide_respawn_room_visualizer = std::make_unique<Modules::HideRespawnRoomVisualizers>(*this);
@@ -100,30 +104,21 @@ void Plugin::Unload()
     m_hide_respawn_room_visualizer.reset();
     m_entity_listener.reset();
     m_network_cache.reset();
+    m_error_reporting.reset();
     m_interfaces.reset();
     m_io_context.reset();
 
     ConVar_Unregister();
     DisconnectTier1Libraries();
 
-    std::erase(spdlog::default_logger()->sinks(), m_tier0_sink);
-
     spdlog::info("Flask unloaded");
+
+    std::erase(spdlog::default_logger()->sinks(), m_tier0_sink);
 }
 
 void Plugin::update(Badge<Modules::GameSystem>)
 {
-    try
-    {
-        m_io_context->poll();
-    }
-    catch (const std::exception& exception)
-    {
-        // If you're hitting this, something has gone terribly wrong, and whatever the issue may be is NOT being
-        // resolved here.
-        spdlog::error("Caught unexpected error whilst polling IO context: {}", exception.what());
-    }
-
+    m_io_context->poll();
     m_server->update({});
 }
 
@@ -144,6 +139,7 @@ void Plugin::nag_about_missing_support(std::string_view reason)
 
 void Plugin::level_init_post_entity(Badge<Modules::GameSystem>)
 {
+    m_error_reporting->level_init_post_entity({});
     m_server->level_init_post_entity({});
 
     auto& engine_client = interfaces().engine_client();
@@ -163,5 +159,9 @@ void Plugin::level_init_post_entity(Badge<Modules::GameSystem>)
             nag_about_missing_support("HLTV PVS is locked");
     }
 }
-void Plugin::level_shutdown_pre_entity(Badge<Modules::GameSystem>) { m_server->level_shutdown_pre_entity({}); }
+void Plugin::level_shutdown_pre_entity(Badge<Modules::GameSystem>)
+{
+    m_error_reporting->level_shutdown_pre_entity({});
+    m_server->level_shutdown_pre_entity({});
+}
 }

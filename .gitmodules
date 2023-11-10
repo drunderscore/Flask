@@ -11,3 +11,6 @@
 [submodule "protobuf"]
 	path = protobuf
 	url = https://github.com/protocolbuffers/protobuf/
+[submodule "sentry-native"]
+	path = sentry-native
+	url = https://github.com/getsentry/sentry-native
