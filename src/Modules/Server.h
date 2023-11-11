@@ -119,14 +119,14 @@ private:
         return *player_update;
     }
 
-    Protocol::PlayerUpdate_Statistics get_or_create_pending_player_update_statistics(uint8_t index)
+    Protocol::PlayerUpdate_Statistics& get_or_create_pending_player_update_statistics(uint8_t index)
     {
         auto& player_update = get_or_create_pending_player_update(index);
 
         if (!player_update.has_statistics())
             player_update.set_allocated_statistics(new Protocol::PlayerUpdate_Statistics);
 
-        return player_update.statistics();
+        return *player_update.mutable_statistics();
     }
 
     std::optional<float> get_charge_level_for_player(void*) const;
