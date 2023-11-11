@@ -33,7 +33,6 @@ if (UNIX)
     set(CURL_LIBRARY /usr/lib32/libcurl.so)
     find_package(CURL REQUIRED COMPONENTS AsynchDNS)
     set_target_properties(CURL::libcurl PROPERTIES IMPORTED_LOCATION_RELEASE ${CURL_LIBRARY})
-    get_target_property(fuck CURL::libcurl IMPORTED_LOCATION_DEBUG)
 endif ()
 
 # Use breakpad on all platforms
