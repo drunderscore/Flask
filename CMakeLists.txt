@@ -4,7 +4,6 @@ project(Flask)
 
 set(HL2SDK_PATH ${PROJECT_SOURCE_DIR}/hl2sdk)
 set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
-set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
 set(BOOST_INCLUDE_DIRECTORY "C:/Program Files/boost_1_80_0" ON CACHE STRING "Path to the Boost includes")
 
 set(CMAKE_CXX_STANDARD 20)
