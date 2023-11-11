@@ -69,4 +69,4 @@ jobs:
       if: github.event_name == 'push' && github.ref_name == 'master'
       run: |
         sentry-cli debug-files check ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb
-        sentry-cli debug-files upload ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb
+        sentry-cli debug-files upload --include-sources ${{ steps.strings.outputs.build-output-dir }}/Flask.pdb
