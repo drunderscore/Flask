@@ -14,6 +14,7 @@
 #include <set>
 #include <string_view>
 
+class IClientNetworkable;
 class IHandleEntity;
 
 namespace Flask::Modules
@@ -75,12 +76,6 @@ public:
         std::optional<ResourceArray<float>> next_respawn_time;
     };
 
-    struct WeaponUpdate
-    {
-        std::optional<float> charge_level;
-        std::optional<int> clip;
-    };
-
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
@@ -91,8 +86,11 @@ private:
     std::unique_ptr<Protocol::GameRulesUpdate> m_pending_game_rules_update;
 
     std::map<uint8_t, std::unique_ptr<Protocol::PlayerUpdate>> m_pending_player_updates;
-    std::map<uint32_t, WeaponUpdate> m_pending_weapon_updates;
+    std::map<uint32_t, std::unique_ptr<Protocol::PlayerUpdate::Weapon>> m_pending_weapon_updates;
     std::optional<PreviousPlayerResource> m_previous_player_resource;
+
+    static constexpr size_t s_max_weapons = 48;
+    std::map<uint8_t, std::array<int, s_max_weapons>> m_previous_my_weapons;
 
     PreviousPlayerResource& get_or_create_previous_player_resource()
     {
@@ -129,13 +127,24 @@ private:
         return *player_update.mutable_statistics();
     }
 
-    std::optional<float> get_charge_level_for_player(void*) const;
+    Protocol::PlayerUpdate_Weapon& get_or_create_pending_player_update_weapon(uint32_t index)
+    {
+        if (auto it = m_pending_weapon_updates.find(index); it != m_pending_weapon_updates.end())
+            return *it->second;
+
+        auto [inserted_pair, _] =
+            m_pending_weapon_updates.insert({index, std::make_unique<flask::protocol::PlayerUpdate_Weapon>()});
+        return *inserted_pair->second;
+    }
+
+    std::optional<float> get_charge_level_for_player(IClientNetworkable*) const;
     void* get_score_data_for_player(void*) const;
+    std::array<CBaseHandle, s_max_weapons> get_weapon_handles_for_player(IClientNetworkable*) const;
 
     std::unique_ptr<Protocol::Tick> create_tick() const;
     std::unique_ptr<Protocol::TimerUpdate> create_timer_update(void* timer) const;
     std::unique_ptr<Protocol::TeamUpdate> create_team_update(void* team) const;
-    std::unique_ptr<Protocol::PlayerUpdate_Weapon> create_player_update_weapon(void* weapon_data_table) const;
+    std::unique_ptr<Protocol::PlayerUpdate_Weapon> create_player_update_weapon(IClientNetworkable* weapon) const;
     std::unique_ptr<Protocol::PlayerUpdate_Statistics> create_player_update_statistics(void* player) const;
 
     std::unique_ptr<Protocol::Player> create_player_from_user_id(uint8_t user_id) const;

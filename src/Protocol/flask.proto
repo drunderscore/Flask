@@ -110,15 +110,18 @@ message PlayerUpdate
   optional uint32 class = 7;
   optional float next_respawn_time = 8;
   optional uint32 life_state = 9;
-  optional float charge_level = 10;
+  reserved 10;
+  reserved "charge_level";
 
   message Weapon
   {
     optional uint32 definition_index = 1;
     optional int32 clip = 2;
+    optional float charge_level = 3;
   };
 
-  Weapon weapon = 11;
+  reserved 11;
+  reserved "weapon";
 
   // FIXME: This is a meta-field used by Flask to re-send a weapon, not part of the protocol.
   //        Probably should be removed.
@@ -132,6 +135,10 @@ message PlayerUpdate
   };
 
   Statistics statistics = 13;
+
+  map<uint32, Weapon> weapons = 14;
+  repeated uint32 weapons_removed = 15;
+  optional uint32 active_weapon = 16;
 };
 
 message PlayerRemove {
@@ -141,11 +148,6 @@ message PlayerRemove {
 message ConVarUpdate {
   string name = 1;
   string value = 2;
-}
-
-message WeaponUpdate {
-  optional float charge_level = 1;
-  optional int32 clip = 2;
 }
 
 message Tick {
@@ -174,10 +176,13 @@ message Event {
     PlayerUpdate player_update = 9;
     PlayerRemove player_remove = 10;
     ConVarUpdate con_var_update = 11;
-    WeaponUpdate weapon_update = 12;
     Tick tick = 13;
     bool shutdown = 14;
   }
+
+  // This was mistakenly included when we switched from JSON, it was never used.
+  reserved 12;
+  reserved "weapon_update";
 }
 
 message Command {
