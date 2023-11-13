@@ -942,8 +942,11 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                     if (auto koth_timer = m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(
                             koth_timer_handle))
                     {
+                        auto timer_update = create_timer_update(koth_timer->GetDataTableBasePtr());
+                        timer_update->set_team(team);
+
                         Protocol::Event event;
-                        event.set_allocated_timer_update(create_timer_update(koth_timer->GetDataTableBasePtr()));
+                        event.set_allocated_timer_update(timer_update);
 
                         client.send(event);
 
