@@ -420,9 +420,9 @@ void* Server::get_score_data_for_player(void* player) const
                                                                  *tf_player_shared_score_data_property);
 }
 
-Protocol::Tick* Server::create_tick() const
+std::unique_ptr<Protocol::Tick> Server::create_tick() const
 {
-    auto tick = new Protocol::Tick;
+    auto tick = std::make_unique<Protocol::Tick>();
 
     tick->set_count(static_cast<uint32_t>(m_plugin.interfaces().engine_tool().ClientTick()));
     tick->set_is_paused(m_plugin.interfaces().engine_client().IsPaused());
@@ -430,7 +430,7 @@ Protocol::Tick* Server::create_tick() const
     return tick;
 };
 
-Protocol::TimerUpdate* Server::create_timer_update(void* timer) const
+std::unique_ptr<Protocol::TimerUpdate> Server::create_timer_update(void* timer) const
 {
     auto team_round_timer_paused_property =
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
@@ -443,7 +443,7 @@ Protocol::TimerUpdate* Server::create_timer_update(void* timer) const
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
                                                                                        "m_flTimeRemaining");
 
-    auto timer_update = new Protocol::TimerUpdate;
+    auto timer_update = std::make_unique<Protocol::TimerUpdate>();
 
     timer_update->set_end_time(
         *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_end_time_property));
@@ -455,7 +455,7 @@ Protocol::TimerUpdate* Server::create_timer_update(void* timer) const
     return timer_update;
 }
 
-Protocol::TeamUpdate* Server::create_team_update(void* team) const
+std::unique_ptr<Protocol::TeamUpdate> Server::create_team_update(void* team) const
 {
     auto team_team_num_property =
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_Team", "m_iTeamNum");
@@ -463,7 +463,7 @@ Protocol::TeamUpdate* Server::create_team_update(void* team) const
     auto team_score_property =
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_Team", "m_iScore");
 
-    auto team_update = new Protocol::TeamUpdate;
+    auto team_update = std::make_unique<Protocol::TeamUpdate>();
 
     team_update->set_team(
         static_cast<uint32_t>(*DataTableHelper::get_property_value_from_object<int>(team, *team_team_num_property)));
@@ -473,7 +473,7 @@ Protocol::TeamUpdate* Server::create_team_update(void* team) const
     return team_update;
 }
 
-Protocol::PlayerUpdate_Weapon* Server::create_player_update_weapon(void* weapon_data_table) const
+std::unique_ptr<Protocol::PlayerUpdate_Weapon> Server::create_player_update_weapon(void* weapon_data_table) const
 {
     auto& network_cache = m_plugin.network_cache();
 
@@ -501,7 +501,7 @@ Protocol::PlayerUpdate_Weapon* Server::create_player_update_weapon(void* weapon_
     auto local_weapon_data =
         DataTableHelper::get_property_value_from_object<void>(weapon_data_table, *base_combat_weapon_local_weapon_data);
 
-    auto weapon = new Protocol::PlayerUpdate_Weapon;
+    auto weapon = std::make_unique<Protocol::PlayerUpdate_Weapon>();
 
     weapon->set_definition_index(static_cast<uint32_t>(
         *DataTableHelper::get_property_value_from_object<uint16_t>(item, *script_created_item_item_definition_index)));
@@ -512,7 +512,7 @@ Protocol::PlayerUpdate_Weapon* Server::create_player_update_weapon(void* weapon_
     return weapon;
 }
 
-Protocol::PlayerUpdate_Statistics* Server::create_player_update_statistics(void* player) const
+std::unique_ptr<Protocol::PlayerUpdate_Statistics> Server::create_player_update_statistics(void* player) const
 {
     auto& network_cache = m_plugin.network_cache();
     auto score_data = get_score_data_for_player(player);
@@ -527,7 +527,7 @@ Protocol::PlayerUpdate_Statistics* Server::create_player_update_statistics(void*
         network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerScoringDataExclusive",
                                                                             "m_iKillAssists");
 
-    auto statistics = new Protocol::PlayerUpdate_Statistics;
+    auto statistics = std::make_unique<Protocol::PlayerUpdate_Statistics>();
 
     statistics->set_kills(static_cast<uint32_t>(
         *DataTableHelper::get_property_value_from_object<int>(score_data, *player_scoring_data_exclusive_kills)));
@@ -539,7 +539,7 @@ Protocol::PlayerUpdate_Statistics* Server::create_player_update_statistics(void*
     return statistics;
 }
 
-Protocol::Player* Server::create_player_from_user_id(uint8_t user_id) const
+std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t user_id) const
 {
     auto entity_index = m_plugin.interfaces().engine_client().GetPlayerForUserID(user_id);
     player_info_t player_info{};
@@ -555,7 +555,7 @@ Protocol::Player* Server::create_player_from_user_id(uint8_t user_id) const
         team = *DataTableHelper::get_property_value_from_object<int>(entity->GetDataTableBasePtr(),
                                                                      base_entity_team_number_property);
 
-    auto player = new Protocol::Player;
+    auto player = std::make_unique<Protocol::Player>();
 
     player->set_user_id(user_id);
     player->set_entity_id(entity_index);
@@ -572,7 +572,7 @@ void Server::update(Badge<Flask::Plugin>)
         m_previous_pause = !m_previous_pause;
 
         Protocol::Event event;
-        event.set_allocated_tick(create_tick());
+        event.set_allocated_tick(create_tick().release());
         send(event);
     }
 
@@ -580,10 +580,8 @@ void Server::update(Badge<Flask::Plugin>)
     {
         Protocol::Event event;
 
-        event.set_allocated_game_rules_update(*m_pending_game_rules_update);
+        event.set_allocated_game_rules_update(m_pending_game_rules_update.release());
         send(event);
-
-        m_pending_game_rules_update = {};
     }
 
     if (!m_pending_timer_updates.empty())
@@ -618,7 +616,7 @@ void Server::update(Badge<Flask::Plugin>)
             }
 
             Protocol::Event event;
-            event.set_allocated_timer_update(timer_update);
+            event.set_allocated_timer_update(timer_update.release());
             send(event);
         }
 
@@ -635,7 +633,7 @@ void Server::update(Badge<Flask::Plugin>)
                 continue;
 
             Protocol::Event event;
-            event.set_allocated_team_update(create_team_update(entity->GetDataTableBasePtr()));
+            event.set_allocated_team_update(create_team_update(entity->GetDataTableBasePtr()).release());
             send(event);
         }
 
@@ -760,12 +758,12 @@ void Server::update(Badge<Flask::Plugin>)
                                       .GetClientNetworkableFromHandle(weapon_handle)
                                       ->GetDataTableBasePtr();
 
-                    player_update->set_allocated_weapon(create_player_update_weapon(weapon));
+                    player_update->set_allocated_weapon(create_player_update_weapon(weapon).release());
                 }
             }
 
             Protocol::Event event;
-            event.set_allocated_player_update(player_update);
+            event.set_allocated_player_update(player_update.release());
             send(event);
         }
 
@@ -814,7 +812,7 @@ void Server::on_remove_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle
 void Server::level_init_post_entity(Badge<Plugin>)
 {
     Protocol::Event event;
-    event.set_allocated_tick(create_tick());
+    event.set_allocated_tick(create_tick().release());
     send(event);
 
     // Update our previous pause to our current paused state, so we don't send a second tick count update event when it
@@ -946,7 +944,7 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                         timer_update->set_team(team);
 
                         Protocol::Event event;
-                        event.set_allocated_timer_update(timer_update);
+                        event.set_allocated_timer_update(timer_update.release());
 
                         client.send(event);
 
@@ -968,7 +966,7 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                         entity->entindex() != blue_koth_timer_entity_index)
                     {
                         Protocol::Event event;
-                        event.set_allocated_timer_update(create_timer_update(entity->GetDataTableBasePtr()));
+                        event.set_allocated_timer_update(create_timer_update(entity->GetDataTableBasePtr()).release());
 
                         client.send(event);
                     }
@@ -1024,7 +1022,7 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                 {
                     Protocol::Event event;
 
-                    event.set_allocated_team_update(create_team_update(entity->GetDataTableBasePtr()));
+                    event.set_allocated_team_update(create_team_update(entity->GetDataTableBasePtr()).release());
                     client.send(event);
                 }
 
@@ -1070,7 +1068,7 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                         steam_id = CSteamID(player_info.friendsID, 1, k_EUniversePublic, k_EAccountTypeIndividual)
                                        .ConvertToUint64();
 
-                    Protocol::PlayerUpdate::Weapon* weapon{};
+                    std::unique_ptr<Protocol::PlayerUpdate::Weapon> weapon{};
 
                     if (CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
                             data_table_base,
@@ -1122,8 +1120,8 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                     if (auto charge_level = get_charge_level_for_player(data_table_base); charge_level.has_value())
                         player_update->set_charge_level(*charge_level);
 
-                    player_update->set_allocated_weapon(weapon);
-                    player_update->set_allocated_statistics(create_player_update_statistics(data_table_base));
+                    player_update->set_allocated_weapon(weapon.release());
+                    player_update->set_allocated_statistics(create_player_update_statistics(data_table_base).release());
 
                     event.set_allocated_player_update(player_update);
 
@@ -1163,7 +1161,7 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
         case Protocol::Event::kTick:
         {
             Protocol::Event event;
-            event.set_allocated_tick(create_tick());
+            event.set_allocated_tick(create_tick().release());
 
             client.send(event);
 
@@ -1227,8 +1225,8 @@ void Server::FireGameEvent(IGameEvent* event)
 
         auto player_death = new Protocol::PlayerDeath;
 
-        player_death->set_allocated_attacker(create_player_from_user_id(event->GetInt("attacker")));
-        player_death->set_allocated_victim(create_player_from_user_id(event->GetInt("userid")));
+        player_death->set_allocated_attacker(create_player_from_user_id(event->GetInt("attacker")).release());
+        player_death->set_allocated_victim(create_player_from_user_id(event->GetInt("userid")).release());
         player_death->set_weapon_classname(event->GetString("weapon_logclassname"));
         player_death->set_weapon_name(event->GetString("weapon"));
         player_death->set_weapon_id(event->GetInt("weapon_id"));
@@ -1238,7 +1236,7 @@ void Server::FireGameEvent(IGameEvent* event)
         player_death->set_crit(static_cast<Protocol::PlayerDeath_Crit>(crit_type));
 
         if (auto assister_userid = event->GetInt("assister"); assister_userid != -1)
-            player_death->set_allocated_assister(create_player_from_user_id(assister_userid));
+            player_death->set_allocated_assister(create_player_from_user_id(assister_userid).release());
 
         auto victim_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(
             m_plugin.interfaces().engine_client().GetPlayerForUserID(event->GetInt("userid")));
@@ -1263,8 +1261,8 @@ void Server::FireGameEvent(IGameEvent* event)
 
         auto object_destroyed = new Protocol::ObjectDestroyed;
 
-        object_destroyed->set_allocated_owner(create_player_from_user_id(owner_user_id));
-        object_destroyed->set_allocated_attacker(create_player_from_user_id(event->GetInt("attacker")));
+        object_destroyed->set_allocated_owner(create_player_from_user_id(owner_user_id).release());
+        object_destroyed->set_allocated_attacker(create_player_from_user_id(event->GetInt("attacker")).release());
         object_destroyed->set_object_type(static_cast<uint32_t>(event->GetInt("objecttype")));
         object_destroyed->set_entity_id(event->GetInt("objecttype"));
         object_destroyed->set_weapon(event->GetString("weapon"));
@@ -1278,8 +1276,8 @@ void Server::FireGameEvent(IGameEvent* event)
 
         auto player_hurt = new Protocol::PlayerHurt;
 
-        player_hurt->set_allocated_victim(create_player_from_user_id(event->GetInt("userid")));
-        player_hurt->set_allocated_attacker(create_player_from_user_id(event->GetInt("attacker")));
+        player_hurt->set_allocated_victim(create_player_from_user_id(event->GetInt("userid")).release());
+        player_hurt->set_allocated_attacker(create_player_from_user_id(event->GetInt("attacker")).release());
         player_hurt->set_health(static_cast<uint32_t>(event->GetInt("health")));
         player_hurt->set_damage(static_cast<uint32_t>(event->GetInt("damageamount")));
         player_hurt->set_crit(event->GetBool("crit"));

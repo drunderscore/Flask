@@ -10,6 +10,7 @@
 #include <basehandle.h>
 #include <igameevents.h>
 #include <map>
+#include <memory>
 #include <set>
 #include <string_view>
 
@@ -87,9 +88,9 @@ private:
 
     std::set<uint32_t> m_pending_timer_updates;
     std::set<uint32_t> m_pending_team_updates;
-    std::optional<Protocol::GameRulesUpdate*> m_pending_game_rules_update;
+    std::unique_ptr<Protocol::GameRulesUpdate> m_pending_game_rules_update;
 
-    std::map<uint8_t, Protocol::PlayerUpdate*> m_pending_player_updates;
+    std::map<uint8_t, std::unique_ptr<Protocol::PlayerUpdate>> m_pending_player_updates;
     std::map<uint32_t, WeaponUpdate> m_pending_weapon_updates;
     std::optional<PreviousPlayerResource> m_previous_player_resource;
 
@@ -104,9 +105,9 @@ private:
     Protocol::GameRulesUpdate& get_or_create_pending_game_rules_update()
     {
         if (!m_pending_game_rules_update)
-            m_pending_game_rules_update = new Protocol::GameRulesUpdate;
+            m_pending_game_rules_update = std::make_unique<Protocol::GameRulesUpdate>();
 
-        return **m_pending_game_rules_update;
+        return *m_pending_game_rules_update;
     }
 
     Protocol::PlayerUpdate& get_or_create_pending_player_update(uint8_t index)
@@ -114,9 +115,8 @@ private:
         if (auto it = m_pending_player_updates.find(index); it != m_pending_player_updates.end())
             return *it->second;
 
-        auto player_update = new Protocol::PlayerUpdate;
-        m_pending_player_updates.insert({index, player_update});
-        return *player_update;
+        auto [inserted_pair, _] = m_pending_player_updates.insert({index, std::make_unique<Protocol::PlayerUpdate>()});
+        return *inserted_pair->second;
     }
 
     Protocol::PlayerUpdate_Statistics& get_or_create_pending_player_update_statistics(uint8_t index)
@@ -132,13 +132,13 @@ private:
     std::optional<float> get_charge_level_for_player(void*) const;
     void* get_score_data_for_player(void*) const;
 
-    Protocol::Tick* create_tick() const;
-    Protocol::TimerUpdate* create_timer_update(void* timer) const;
-    Protocol::TeamUpdate* create_team_update(void* team) const;
-    Protocol::PlayerUpdate_Weapon* create_player_update_weapon(void* weapon_data_table) const;
-    Protocol::PlayerUpdate_Statistics* create_player_update_statistics(void* player) const;
+    std::unique_ptr<Protocol::Tick> create_tick() const;
+    std::unique_ptr<Protocol::TimerUpdate> create_timer_update(void* timer) const;
+    std::unique_ptr<Protocol::TeamUpdate> create_team_update(void* team) const;
+    std::unique_ptr<Protocol::PlayerUpdate_Weapon> create_player_update_weapon(void* weapon_data_table) const;
+    std::unique_ptr<Protocol::PlayerUpdate_Statistics> create_player_update_statistics(void* player) const;
 
-    Protocol::Player* create_player_from_user_id(uint8_t user_id) const;
+    std::unique_ptr<Protocol::Player> create_player_from_user_id(uint8_t user_id) const;
 
     void* m_game_rules{};
     void* m_player_resource{};
