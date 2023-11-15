@@ -139,6 +139,37 @@ message PlayerUpdate
   map<uint32, Weapon> weapons = 14;
   repeated uint32 weapons_removed = 15;
   optional uint32 active_weapon = 16;
+
+  // Included the most relevant definitions here.
+  // If your protobuf compiler only supports closed enums, it'll be a bit annoying, because you'll have to check the
+  // message's unknown field set.
+  enum Condition {
+    // "The first enum value must be zero for open enums." -protobuf compiler
+    AIMING = 0;
+    DISGUISING = 2;
+    DISGUISED = 3;
+    STEALTHED = 4;
+    INVULNERABLE = 5;
+    TAUNTING = 7;
+    OFFENSEBUFF = 16;
+    BURNING = 22;
+    URINE = 24;
+    BLEEDING = 25;
+    DEFENSEBUFF = 26;
+    MAD_MILK = 27;
+    REGENONDAMAGEBUFF = 29;
+    MARKEDFORDEATH = 30;
+    MEDIGUN_UBER_BULLET_RESIST = 58;
+    MEDIGUN_UBER_BLAST_RESIST = 59;
+    MEDIGUN_UBER_FIRE_RESIST = 60;
+    MEDIGUN_SMALL_BULLET_RESIST = 61;
+    MEDIGUN_SMALL_BLAST_RESIST = 62;
+    MEDIGUN_SMALL_FIRE_RESIST = 63;
+    BLASTJUMPING = 81;
+  }
+
+  repeated Condition conditions = 17;
+  repeated Condition conditions_removed = 18;
 };
 
 message PlayerRemove {

@@ -308,6 +308,39 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             std::copy(current_values.begin(), current_values.end(), values.begin());
         });
 
+    auto update_previous_conditions = [this](auto starting_condition_index) {
+        return [this, starting_condition_index](auto data, auto, auto output_variable) {
+            auto conditions = *static_cast<int*>(output_variable);
+
+            // NOTE: Get a reference to this early, to ensure it is default-constructed, even in the case that no
+            //       conditions were previously set (which is very likely.)
+            auto& previous_conditions = m_previous_player_conditions[data->m_ObjectID];
+
+            for (auto i = 0; i < 32; i++)
+            {
+                if (((1 << i) & conditions) != 0)
+                    previous_conditions.insert(
+                        static_cast<Protocol::PlayerUpdate_Condition>(i + starting_condition_index));
+            }
+        };
+    };
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCond"),
+        update_previous_conditions(0), DataTableChangeListener::CallbackInvocationOrder::BeforeOriginalProxy);
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx"),
+        update_previous_conditions(32), DataTableChangeListener::CallbackInvocationOrder::BeforeOriginalProxy);
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx2"),
+        update_previous_conditions(64), DataTableChangeListener::CallbackInvocationOrder::BeforeOriginalProxy);
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx3"),
+        update_previous_conditions(96), DataTableChangeListener::CallbackInvocationOrder::BeforeOriginalProxy);
+
     accept();
 
     g_pCVar->InstallGlobalChangeCallback([](auto* convar_interface, auto* previous_value, auto) {
@@ -400,6 +433,15 @@ Server::~Server()
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseCombatCharacter", "m_hMyWeapons"));
 
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCond"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx2"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx3"));
+
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
 
@@ -461,6 +503,48 @@ std::array<CBaseHandle, Server::s_max_weapons> Server::get_weapon_handles_for_pl
                    [](auto handle_integer) { return CBaseHandle(handle_integer); });
 
     return my_weapons_handles;
+}
+
+std::set<Protocol::PlayerUpdate_Condition> Server::get_player_conditions(IClientNetworkable* player) const
+{
+    auto tf_player_shared_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayer", "m_Shared");
+
+    auto player_conditions_property = m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerShared", "m_nPlayerCond");
+
+    auto player_conditions_ex_property = m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerShared", "m_nPlayerCondEx");
+
+    auto player_conditions_ex_2_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared",
+                                                                                       "m_nPlayerCondEx2");
+
+    auto player_conditions_ex_3_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared",
+                                                                                       "m_nPlayerCondEx3");
+
+    std::set<Protocol::PlayerUpdate_Condition> conditions;
+
+    auto player_shared = DataTableHelper::get_property_value_from_object<void>(player->GetDataTableBasePtr(),
+                                                                               *tf_player_shared_property);
+
+    auto insert_conditions = [&conditions, data_table = player_shared](auto property, auto starting_condition_index) {
+        auto value = *DataTableHelper::get_property_value_from_object<int>(data_table, *property);
+
+        for (auto i = 0; i < 32; i++)
+        {
+            if (((1 << i) & value) != 0)
+                conditions.insert(static_cast<Protocol::PlayerUpdate_Condition>(i + starting_condition_index));
+        }
+    };
+
+    insert_conditions(player_conditions_property, 0);
+    insert_conditions(player_conditions_ex_property, 32);
+    insert_conditions(player_conditions_ex_2_property, 64);
+    insert_conditions(player_conditions_ex_3_property, 96);
+
+    return std::move(conditions);
 }
 
 std::unique_ptr<Protocol::Tick> Server::create_tick() const
@@ -827,6 +911,29 @@ void Server::update(Badge<Flask::Plugin>)
         }
 
         m_pending_weapon_updates.clear();
+    }
+
+    if (!m_previous_player_conditions.empty())
+    {
+        for (auto& [entity_id, previous_conditions] : m_previous_player_conditions)
+        {
+            auto player = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+            auto current_conditions = get_player_conditions(player);
+
+            std::set<Protocol::PlayerUpdate_Condition> different_conditions;
+            std::set_union(previous_conditions.begin(), previous_conditions.end(), current_conditions.begin(),
+                           current_conditions.end(), std::inserter(different_conditions, different_conditions.end()));
+
+            for (auto differing_condition : different_conditions)
+            {
+                if (current_conditions.contains(differing_condition))
+                    get_or_create_pending_player_update(entity_id).add_conditions(differing_condition);
+                else
+                    get_or_create_pending_player_update(entity_id).add_conditions_removed(differing_condition);
+            }
+        }
+
+        m_previous_player_conditions.clear();
     }
 
     if (!m_pending_player_updates.empty())
@@ -1216,6 +1323,9 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                     }
 
                     player_update->set_allocated_statistics(create_player_update_statistics(data_table_base).release());
+
+                    for (auto condition : get_player_conditions(entity))
+                        player_update->add_conditions(condition);
 
                     event.set_allocated_player_update(player_update);
 
