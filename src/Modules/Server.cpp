@@ -341,6 +341,20 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx3"),
         update_previous_conditions(96), DataTableChangeListener::CallbackInvocationOrder::BeforeOriginalProxy);
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nDisguiseTeam"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update(data->m_ObjectID)
+                .set_disguise_team(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nDisguiseClass"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update(data->m_ObjectID)
+                .set_disguise_class(*static_cast<int*>(output_variable));
+        });
+
     accept();
 
     g_pCVar->InstallGlobalChangeCallback([](auto* convar_interface, auto* previous_value, auto) {
@@ -441,6 +455,11 @@ Server::~Server()
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx2"));
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nPlayerCondEx3"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nDisguiseTeam"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nDisguiseClass"));
 
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
@@ -1326,6 +1345,21 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
 
                     for (auto condition : get_player_conditions(entity))
                         player_update->add_conditions(condition);
+
+                    auto tf_player_shared_property =
+                        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayer",
+                                                                                                       "m_Shared");
+
+                    auto player_shared = DataTableHelper::get_property_value_from_object<void>(
+                        data_table_base, *tf_player_shared_property);
+
+                    player_update->set_disguise_team(*DataTableHelper::get_property_value_from_object<int>(
+                        player_shared, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                           "DT_TFPlayerShared", "m_nDisguiseTeam")));
+
+                    player_update->set_disguise_class(*DataTableHelper::get_property_value_from_object<int>(
+                        player_shared, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                           "DT_TFPlayerShared", "m_nDisguiseClass")));
 
                     event.set_allocated_player_update(player_update);
 

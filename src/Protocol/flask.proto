@@ -170,6 +170,9 @@ message PlayerUpdate
 
   repeated Condition conditions = 17;
   repeated Condition conditions_removed = 18;
+
+  optional uint32 disguise_team = 19;
+  optional uint32 disguise_class = 20;
 };
 
 message PlayerRemove {
