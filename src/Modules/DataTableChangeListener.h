@@ -21,8 +21,16 @@ public:
     using DataTableChangedCallback =
         std::function<void(const RecvProp*, void** output_variable, void* data, int object_id)>;
 
-    void add_listener(RecvProp&, ReceivePropertyChangedCallback);
-    void add_listener(RecvProp&, DataTableChangedCallback);
+    enum class CallbackInvocationOrder
+    {
+        BeforeOriginalProxy,
+        AfterOriginalProxy
+    };
+
+    void add_listener(RecvProp&, ReceivePropertyChangedCallback,
+                      CallbackInvocationOrder = CallbackInvocationOrder::AfterOriginalProxy);
+    void add_listener(RecvProp&, DataTableChangedCallback,
+                      CallbackInvocationOrder = CallbackInvocationOrder::AfterOriginalProxy);
 
     void remove_listener(RecvProp& receive_property);
 
@@ -31,12 +39,14 @@ private:
     {
         RecvVarProxyFn original_proxy;
         ReceivePropertyChangedCallback callback;
+        CallbackInvocationOrder callback_invocation_order;
     };
 
     struct DataTableListener
     {
         DataTableRecvVarProxyFn original_proxy;
         DataTableChangedCallback callback;
+        CallbackInvocationOrder callback_invocation_order;
     };
 
     std::map<RecvProp*, std::variant<ReceivePropertyListener, DataTableListener>> m_listeners;
