@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "DataTableChangeListener.h"
 #include "EntityEnumerator.h"
+#include "EntityListener.h"
 #include "Interfaces.h"
 #include "NetworkCache.h"
 #include <boost/asio/defer.hpp>
@@ -353,6 +354,12 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
         [this](auto data, auto, auto output_variable) {
             get_or_create_pending_player_update(data->m_ObjectID)
                 .set_disguise_class(*static_cast<int*>(output_variable));
+        });
+
+    m_plugin.entity_listener().add_create_entity_callback([this](auto entity) { on_create_entity(entity); });
+    m_plugin.entity_listener().add_delete_entity_callback(
+        [this](auto entity, auto reason, auto on_recreating_all_entities) {
+            on_delete_entity(entity, reason, on_recreating_all_entities);
         });
 
     accept();
@@ -988,21 +995,17 @@ void Server::update(Badge<Flask::Plugin>)
     }
 }
 
-void Server::on_add_entity(Badge<EntityListener>, IHandleEntity& handle_entity, CBaseHandle)
+void Server::on_create_entity(IClientNetworkable* entity)
 {
-    auto& client_unknown = static_cast<IClientUnknown&>(handle_entity);
-
-    if (client_unknown.GetClientNetworkable()->GetClientClass()->GetName() == "CTFPlayerResource"sv)
-        m_player_resource = client_unknown.GetClientNetworkable()->GetDataTableBasePtr();
+    if (entity->GetClientClass()->GetName() == "CTFPlayerResource"sv)
+        m_player_resource = entity->GetDataTableBasePtr();
 }
 
-void Server::on_remove_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle handle)
+void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
 {
     auto max_players = m_plugin.interfaces().engine_client().GetMaxClients();
-    auto entity_index = handle.GetEntryIndex();
+    auto entity_index = entity->entindex();
 
-    // Due to the issue outlined in EntityListener::on_remove_entity, this is the only way we can identify player
-    // entities.
     if (entity_index >= 1 && entity_index <= max_players)
     {
         // Ignore the HLTV player being removed (though this should never happen)

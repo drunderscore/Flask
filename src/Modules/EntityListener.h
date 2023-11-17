@@ -1,11 +1,12 @@
 #pragma once
 
 #include "../Forward.h"
-#include <basehandle.h>
-#include <icliententitylist.h>
+#include <JMP/Signature.h>
+#include <functional>
+#include <subhook.h>
+#include <vector>
 
-class CClientEntityList;
-class IHandleEntity;
+class IClientNetworkable;
 
 namespace Flask::Modules
 {
@@ -15,36 +16,37 @@ public:
     explicit EntityListener(Plugin&);
     ~EntityListener();
 
+    using CreateEntityCallback = std::function<void(IClientNetworkable*)>;
+    using DeleteEntityCallback =
+        std::function<void(IClientNetworkable*, const char* reason, bool on_recreating_all_entities)>;
+
+    void add_create_entity_callback(CreateEntityCallback callback)
+    {
+        m_create_dll_entity_callbacks.push_back(std::move(callback));
+    }
+
+    void add_delete_entity_callback(DeleteEntityCallback callback)
+    {
+        m_delete_dll_entity_callbacks.push_back(std::move(callback));
+    }
+
 private:
-    // CClientEntityList::OnAddEntity is in a vtable, however multi-inheritance makes it difficult to get at that vtable
-    // because it if offset by the members of another superclass. This is the offset of that VTable from an
-    // IClientEntityList.
-    static constexpr uintptr_t s_client_entity_list_vtable_offset = 131092;
+    static JMP::Signature s_create_dll_entity_function;
+    static JMP::Signature s_delete_dll_entity_function;
 
 #ifdef POSIX
-    static __attribute__((cdecl)) void on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
-    static __attribute__((cdecl)) void on_remove_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
+    static __attribute__((cdecl)) IClientNetworkable* on_create_dll_entity(int entity_index, int client_class,
+                                                                           int serial_number);
+    static __attribute__((cdecl)) void on_delete_dll_entity(int entity_index, const char* reason,
+                                                            bool on_recreating_all_entities);
 #else
-    static void __thiscall on_add_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
-    static void __thiscall on_remove_entity(CClientEntityList* self, IHandleEntity*, CBaseHandle);
+    static IClientNetworkable* __cdecl on_create_dll_entity(int entity_index, int client_class, int serial_number);
+    static void __cdecl on_delete_dll_entity(int entity_index, const char* reason, bool on_recreating_all_entities);
 #endif
 
-    using CClientEntityListOnAddEntityFn = decltype(on_add_entity)*;
-    using CClientEntityListOnRemoveEntityFn = decltype(on_remove_entity)*;
-
-    struct VTable
-    {
-        CClientEntityListOnAddEntityFn on_add_entity;
-        CClientEntityListOnRemoveEntityFn on_remove_entity;
-    };
-
-    VTable* m_vtable{};
-    CClientEntityListOnAddEntityFn m_client_entity_list_on_add_entity_function{};
-    CClientEntityListOnRemoveEntityFn m_client_entity_list_on_remove_entity_function{};
-
-    static VTable* calculate_client_entity_list_vtable(IClientEntityList& client_entity_list)
-    {
-        return *reinterpret_cast<VTable**>(&client_entity_list - (s_client_entity_list_vtable_offset / 4));
-    }
+    subhook_t m_create_dll_entity_subhook{};
+    subhook_t m_delete_dll_entity_subhook{};
+    std::vector<CreateEntityCallback> m_create_dll_entity_callbacks;
+    std::vector<DeleteEntityCallback> m_delete_dll_entity_callbacks;
 };
 }

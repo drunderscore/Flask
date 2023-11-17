@@ -44,6 +44,10 @@ add_subdirectory(protobuf)
 add_subdirectory(spdlog)
 add_subdirectory(JMP)
 
+set(SUBHOOK_TESTS OFF)
+set(SUBHOOK_STATIC OFF)
+add_subdirectory(subhook)
+
 include(protobuf/cmake/protobuf-generate.cmake)
 
 set(PROTO_SOURCE_DIR src/Protocol)
@@ -159,4 +163,4 @@ elseif (WIN32)
     target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions ${CMAKE_SOURCE_DIR}/Libraries/Windows/steam_api.lib)
 endif ()
 
-target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol sentry::sentry)
+target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol sentry::sentry subhook::subhook)

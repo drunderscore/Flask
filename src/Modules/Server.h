@@ -36,9 +36,6 @@ public:
     void level_shutdown_pre_entity(Badge<Plugin>);
     void update(Badge<Plugin>);
 
-    void on_add_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle);
-    void on_remove_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle);
-
     // C_PlayerResource (and it's TF inheritor, C_TFPlayerResource) store player variables we care about in arrays,
     // separate from the player entity. This is probably done in such a way so that all clients have access to certain
     // values, regardless of PVS of the other player... a true Source Engine moment.
@@ -137,6 +134,9 @@ private:
             m_pending_weapon_updates.insert({index, std::make_unique<flask::protocol::PlayerUpdate_Weapon>()});
         return *inserted_pair->second;
     }
+
+    void on_create_entity(IClientNetworkable*);
+    void on_delete_entity(IClientNetworkable*, const char* reason, bool on_recreating_all_entities);
 
     std::optional<float> get_charge_level_for_player(IClientNetworkable*) const;
     void* get_score_data_for_player(void*) const;

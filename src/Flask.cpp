@@ -27,8 +27,10 @@ EXPOSE_SINGLE_INTERFACE_GLOBALVAR(Plugin, IServerPluginCallbacks, INTERFACEVERSI
 
 #ifdef POSIX
 std::string_view Plugin::s_client_library_name = "tf/bin/client.so";
+std::string_view Plugin::s_engine_library_name = "bin/engine.so";
 #elif _WIN32
 std::string_view Plugin::s_client_library_name = "tf/bin/client.dll";
+std::string_view Plugin::s_client_library_name = "bin/engine.dll";
 #endif
 
 std::string_view Plugin::s_git_revision = FLASK_GIT_SHA1;
@@ -58,8 +60,10 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
     });
 
     m_client_library_bytes = JMP::Platform::get_bytes_for_library_name(s_client_library_name.data());
+    m_engine_library_bytes = JMP::Platform::get_bytes_for_library_name("bin/engine.so");
 
     JMP::Platform::modify_memory_protection(m_client_library_bytes, {.read = true, .write = true, .execute = true});
+    JMP::Platform::modify_memory_protection(m_engine_library_bytes, {.read = true, .write = true, .execute = true});
 
     try
     {

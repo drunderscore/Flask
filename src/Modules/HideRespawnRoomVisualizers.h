@@ -1,13 +1,11 @@
 #pragma once
 
-#include "../Badge.h"
 #include "../Forward.h"
 #include "../ManagedConCommand.h"
-#include "Forward.h"
 #include <basehandle.h>
 
 class C_BaseEntity;
-class IHandleEntity;
+class IClientNetworkable;
 
 namespace Flask::Modules
 {
@@ -17,14 +15,14 @@ public:
     explicit HideRespawnRoomVisualizers(Plugin&);
     ~HideRespawnRoomVisualizers();
 
-    void on_add_entity(Badge<EntityListener>, IHandleEntity&, CBaseHandle);
-
 private:
 #ifdef POSIX
     static __attribute__((cdecl)) int respawn_room_visualizer_draw_model(C_BaseEntity*, int);
 #else
     static int __thiscall respawn_room_visualizer_draw_model(C_BaseEntity*, int);
 #endif
+
+    void on_create_entity(IClientNetworkable*);
 
     Plugin& m_plugin;
 

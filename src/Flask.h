@@ -54,8 +54,10 @@ public:
     void level_shutdown_pre_entity(Badge<Modules::GameSystem>);
 
     std::span<uint8_t> client_library_bytes() const { return m_client_library_bytes; }
+    std::span<uint8_t> engine_library_bytes() const { return m_engine_library_bytes; }
 
     static std::string_view s_client_library_name;
+    static std::string_view s_engine_library_name;
 
     static std::string_view s_git_revision;
 
@@ -80,6 +82,7 @@ private:
 
     std::unique_ptr<boost::asio::io_context> m_io_context;
     std::span<uint8_t> m_client_library_bytes;
+    std::span<uint8_t> m_engine_library_bytes;
 
     std::unique_ptr<Modules::Interfaces> m_interfaces;
     std::unique_ptr<Modules::ErrorReporting> m_error_reporting;
