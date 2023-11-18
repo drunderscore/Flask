@@ -141,7 +141,7 @@ void Client::on_command(const Protocol::Command& command)
         }
 
         // Okay, this looks like a valid event.
-        auto event_data_case = static_cast<Protocol::Event::DataCase>(event_descriptor->index_in_oneof() + 1);
+        auto event_data_case = static_cast<Protocol::Event::DataCase>(event_descriptor->number());
 
         // Next, make sure we aren't already supposed to be listening to this event.
         if (m_listening_events.contains(event_data_case))
