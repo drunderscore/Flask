@@ -27,6 +27,12 @@ std::set<std::string_view> Server::s_convars_to_sync = {
     "mp_timelimit",
 };
 
+std::set<std::string_view> Server::s_engineer_buildings_to_sync = {
+    "CObjectSentrygun",
+    "CObjectDispenser",
+    "CObjectTeleporter",
+};
+
 Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), m_plugin(plugin)
 {
     auto& game_event_manager = plugin.interfaces().game_event_manager();
@@ -432,6 +438,90 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
 
         return entity;
     };
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_iHealth"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_health(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_iMaxHealth"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_max_health(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_bHasSapper"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_has_sapper(*static_cast<bool*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_iObjectType"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_type(static_cast<Protocol::PlayerUpdate::Building::Type>(*static_cast<int*>(output_variable)));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_bBuilding"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_is_building(*static_cast<bool*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_bPlacing"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_is_placing(*static_cast<bool*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_bCarried"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_is_carried(*static_cast<bool*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_iUpgradeLevel"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_upgrade_level(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_iHighestUpgradeLevel"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_highest_upgrade_level(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_iObjectMode"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_mode(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseObject", "m_iUpgradeMetal"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update_building(data->m_ObjectID)
+                .set_upgrade_metal(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_BaseObject", "m_iUpgradeMetalRequired"),
+                                            [this](auto data, auto, auto output_variable) {
+                                                get_or_create_pending_player_update_building(data->m_ObjectID)
+                                                    .set_upgrade_metal_required(*static_cast<int*>(output_variable));
+                                            });
 
     m_plugin.entity_listener().add_delete_entity_callback(
         [this](auto entity, auto reason, auto on_recreating_all_entities) {
@@ -1191,6 +1281,29 @@ void Server::update(Badge<Plugin>)
         m_previous_kill_streak.clear();
     }
 
+    if (!m_pending_building_updates.empty())
+    {
+        for (auto& [entity_id, building_update] : m_pending_building_updates)
+        {
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+            if (!s_engineer_buildings_to_sync.contains(entity->GetClientClass()->GetName()))
+                continue;
+
+            CBaseHandle owner_handle = *DataTableHelper::get_property_value_from_object<int>(
+                entity->GetDataTableBasePtr(),
+                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseObject",
+                                                                                                "m_hBuilder"));
+
+            if (!owner_handle.IsValid())
+                continue;
+
+            (*get_or_create_pending_player_update(owner_handle.GetEntryIndex()).mutable_buildings())[entity_id] =
+                std::move(*building_update.release());
+        }
+
+        m_pending_building_updates.clear();
+    }
+
     if (!m_pending_player_updates.empty())
     {
         for (auto& [entity_id, player_update] : m_pending_player_updates)
@@ -1258,11 +1371,24 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
         m_previous_kill_streak.erase(entity_index);
         m_previous_ammo.erase(entity_index);
     }
-    else
+    else if (s_engineer_buildings_to_sync.contains(entity->GetClientClass()->GetName()))
     {
-        if (m_pending_weapon_updates.erase(entity_index) > 0)
-            spdlog::debug("Weapon entity removed that had a pending update!");
+        if (CBaseHandle owner_handle = *DataTableHelper::get_property_value_from_object<int>(
+                entity->GetDataTableBasePtr(),
+                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseObject",
+                                                                                                "m_hBuilder"));
+            owner_handle.IsValid())
+        {
+            get_or_create_pending_player_update(owner_handle.GetEntryIndex()).add_buildings_removed(entity_index);
+        }
     }
+
+    if (m_pending_player_updates.erase(entity_index) > 0)
+        spdlog::debug("Player entity removed that had a pending update!");
+    if (m_pending_weapon_updates.erase(entity_index) > 0)
+        spdlog::debug("Weapon entity removed that had a pending update!");
+    else if (m_pending_building_updates.erase(entity_index) > 0)
+        spdlog::debug("Building entity removed that had a pending update!");
 }
 
 void Server::level_init_post_entity(Badge<Plugin>)
@@ -1629,6 +1755,88 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                     auto ammo = get_player_ammo(entity);
                     for (auto i = 0; i < s_max_ammo; i++)
                         (*player_update->mutable_ammo())[i] = ammo[i];
+
+                    // TODO: I think the game keeps a list of this already that wouldn't require us to iterate?
+                    m_plugin.entity_enumerator().all([this, player_update, index](auto entity) {
+                        if (!s_engineer_buildings_to_sync.contains(entity->GetClientClass()->GetName()))
+                            return EntityEnumerator::IterationDecision::Continue;
+
+                        if (CBaseHandle owner_handle = *DataTableHelper::get_property_value_from_object<int>(
+                                entity->GetDataTableBasePtr(),
+                                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                    "DT_BaseObject", "m_hBuilder"));
+                            !owner_handle.IsValid() || owner_handle.GetEntryIndex() != index)
+                            return EntityEnumerator::IterationDecision::Continue;
+
+                        auto building_update = new Protocol::PlayerUpdate::Building;
+
+                        building_update->set_type(static_cast<Protocol::PlayerUpdate::Building::Type>(
+                            *DataTableHelper::get_property_value_from_object<int>(
+                                entity->GetDataTableBasePtr(),
+                                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                    "DT_BaseObject", "m_iObjectType"))));
+
+                        building_update->set_health(*DataTableHelper::get_property_value_from_object<int>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_iHealth")));
+
+                        building_update->set_max_health(*DataTableHelper::get_property_value_from_object<int>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_iMaxHealth")));
+
+                        building_update->set_has_sapper(*DataTableHelper::get_property_value_from_object<bool>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_bHasSapper")));
+
+                        building_update->set_is_building(*DataTableHelper::get_property_value_from_object<bool>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_bBuilding")));
+
+                        building_update->set_is_placing(*DataTableHelper::get_property_value_from_object<bool>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_bPlacing")));
+
+                        building_update->set_is_carried(*DataTableHelper::get_property_value_from_object<bool>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_bCarried")));
+
+                        building_update->set_upgrade_level(*DataTableHelper::get_property_value_from_object<int>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_iUpgradeLevel")));
+
+                        building_update->set_highest_upgrade_level(
+                            *DataTableHelper::get_property_value_from_object<int>(
+                                entity->GetDataTableBasePtr(),
+                                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                    "DT_BaseObject", "m_iHighestUpgradeLevel")));
+
+                        building_update->set_mode(*DataTableHelper::get_property_value_from_object<int>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_iObjectMode")));
+
+                        building_update->set_upgrade_metal(*DataTableHelper::get_property_value_from_object<int>(
+                            entity->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseObject", "m_iUpgradeMetal")));
+
+                        building_update->set_upgrade_metal_required(
+                            *DataTableHelper::get_property_value_from_object<int>(
+                                entity->GetDataTableBasePtr(),
+                                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                    "DT_BaseObject", "m_iUpgradeMetalRequired")));
+
+                        (*player_update->mutable_buildings())[entity->entindex()] = *building_update;
+
+                        return EntityEnumerator::IterationDecision::Continue;
+                    });
 
                     event.set_allocated_player_update(player_update);
 

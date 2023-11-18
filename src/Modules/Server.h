@@ -100,11 +100,14 @@ private:
     std::map<uint8_t, std::unique_ptr<Protocol::PlayerUpdate>> m_pending_player_updates;
     std::map<uint32_t, std::unique_ptr<Protocol::PlayerUpdate::Weapon>> m_pending_weapon_updates;
     std::optional<PreviousPlayerResource> m_previous_player_resource;
+
     std::map<uint8_t, std::set<Protocol::PlayerUpdate::Condition>> m_previous_player_conditions;
     std::map<uint8_t, int> m_previous_kill_streak;
 
     static constexpr size_t s_max_ammo = 7;
     std::map<uint8_t, std::array<int, s_max_ammo>> m_previous_ammo;
+
+    std::map<uint32_t, std::unique_ptr<Protocol::PlayerUpdate::Building>> m_pending_building_updates;
 
     static constexpr size_t s_max_weapons = 48;
     std::map<uint8_t, std::array<int, s_max_weapons>> m_previous_my_weapons;
@@ -154,6 +157,16 @@ private:
         return *inserted_pair->second;
     }
 
+    Protocol::PlayerUpdate::Building& get_or_create_pending_player_update_building(uint32_t index)
+    {
+        if (auto it = m_pending_building_updates.find(index); it != m_pending_building_updates.end())
+            return *it->second;
+
+        auto [inserted_pair, _] =
+            m_pending_building_updates.insert({index, std::make_unique<Protocol::PlayerUpdate::Building>()});
+        return *inserted_pair->second;
+    }
+
     void on_create_entity(IClientNetworkable*);
     void on_delete_entity(IClientNetworkable*, const char* reason, bool on_recreating_all_entities);
 
@@ -181,6 +194,7 @@ private:
     // TODO: In the future, we should not define this list ourselves, but rather the client should tell us which convars
     //       it is interested in.
     static std::set<std::string_view> s_convars_to_sync;
+    static std::set<std::string_view> s_engineer_buildings_to_sync;
     static void flask_network_client_list(const CCommand&);
     static void flask_send_user_interaction(const CCommand&);
 };

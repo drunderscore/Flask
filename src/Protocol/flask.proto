@@ -192,6 +192,31 @@ message PlayerUpdate
   map<int32, int32> ammo = 24;
 
   optional float cloak_meter = 25;
+
+  message Building {
+    enum Type {
+      DISPENSER = 0;
+      TELEPORTER = 1;
+      SENTRYGUN = 2;
+    }
+
+    optional Type type = 1;
+    optional int32 health = 2;
+    optional int32 max_health = 3;
+    optional bool has_sapper = 4;
+    optional bool is_building = 5;
+    optional bool is_placing = 6;
+    optional bool is_carried = 7;
+    optional uint32 upgrade_level = 8;
+    optional uint32 highest_upgrade_level = 9;
+    optional int32 mode = 10;
+    optional int32 upgrade_metal = 11;
+    optional int32 upgrade_metal_required = 12;
+  }
+
+  // This could be a repeated field, but we need a way to remove them later, so use the entity ID as a unique key.
+  map<uint32, Building> buildings = 26;
+  repeated uint32 buildings_removed = 27;
 };
 
 message PlayerRemove {
