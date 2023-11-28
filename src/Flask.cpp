@@ -30,7 +30,7 @@ std::string_view Plugin::s_client_library_name = "tf/bin/client.so";
 std::string_view Plugin::s_engine_library_name = "bin/engine.so";
 #elif _WIN32
 std::string_view Plugin::s_client_library_name = "tf/bin/client.dll";
-std::string_view Plugin::s_client_library_name = "bin/engine.dll";
+std::string_view Plugin::s_engine_library_name = "bin/engine.dll";
 #endif
 
 std::string_view Plugin::s_git_revision = FLASK_GIT_SHA1;
