@@ -441,7 +441,20 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
         auto& server = Plugin::the().server();
 
         auto entity = server.m_tf_player_resource_create_fn_original(index, serial);
-        server.on_create_entity(entity);
+        server.on_create_player_resource(entity);
+
+        return entity;
+    };
+
+    auto tf_objective_resource_client_class =
+        m_plugin.network_cache().find_client_class_by_name("CTFObjectiveResource");
+    m_tf_objective_resource_create_fn_original = tf_objective_resource_client_class->m_pCreateFn;
+
+    tf_objective_resource_client_class->m_pCreateFn = [](auto index, auto serial) {
+        auto& server = Plugin::the().server();
+
+        auto entity = server.m_tf_objective_resource_create_fn_original(index, serial);
+        server.on_create_objective_resource(entity);
 
         return entity;
     };
@@ -542,6 +555,90 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             on_delete_entity(entity, reason, on_recreating_all_entities);
         });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_iNumTeamMembers"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::number_of_capturers)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<uint32_t**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().number_of_capturers = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_iCappingTeam"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::capturing_team)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<uint32_t**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().capturing_team = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_flTeamCapTime"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::capture_time)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<float**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().capture_time = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_bBlocked"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::blocked)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<bool**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().blocked = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_iOwner"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::owning_team)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<uint32_t**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().owning_team = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_flLazyCapPerc"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::capture_percentage)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<float**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().capture_percentage = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_bCPLocked"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::locked)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<bool**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().locked = std::move(values);
+        });
+
     accept();
 
     g_pCVar->InstallGlobalChangeCallback(on_convar_change);
@@ -560,6 +657,14 @@ Server::~Server()
             m_tf_player_resource_create_fn_original;
 
         m_tf_player_resource_create_fn_original = nullptr;
+    }
+
+    if (m_tf_objective_resource_create_fn_original)
+    {
+        m_plugin.network_cache().find_client_class_by_name("CTFObjectiveResource")->m_pCreateFn =
+            m_tf_objective_resource_create_fn_original;
+
+        m_tf_objective_resource_create_fn_original = nullptr;
     }
 
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
@@ -697,6 +802,69 @@ std::span<int> Server::get_player_ammo(IClientNetworkable* player) const
 
     return {DataTableHelper::get_property_value_from_object<int>(local_data, local_player_exclusive_ammo_property),
             s_max_ammo};
+}
+
+uint32_t Server::number_of_control_points() const
+{
+    return *DataTableHelper::get_property_value_from_object<uint32_t>(
+        m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                  "DT_BaseTeamObjectiveResource", "m_iNumControlPoints"));
+}
+
+std::span<uint32_t> Server::control_point_number_of_capturers() const
+{
+    return {DataTableHelper::get_property_value_from_object<uint32_t>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_iNumTeamMembers")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::number_of_capturers)::value_type>};
+}
+
+std::span<uint32_t> Server::control_point_capturing_team() const
+{
+    return {DataTableHelper::get_property_value_from_object<uint32_t>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_iCappingTeam")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::capturing_team)::value_type>};
+}
+
+std::span<float> Server::control_point_capture_time() const
+{
+    return {DataTableHelper::get_property_value_from_object<float>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_flTeamCapTime")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::capture_time)::value_type>};
+}
+
+std::span<bool> Server::control_point_blocked() const
+{
+    return {DataTableHelper::get_property_value_from_object<bool>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_bBlocked")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::blocked)::value_type>};
+}
+
+std::span<uint32_t> Server::control_point_owning_team() const
+{
+    return {DataTableHelper::get_property_value_from_object<uint32_t>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_iOwner")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::owning_team)::value_type>};
+}
+
+std::span<float> Server::control_point_capture_percentage() const
+{
+    return {DataTableHelper::get_property_value_from_object<float>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_flLazyCapPerc")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::capture_percentage)::value_type>};
+}
+
+std::span<bool> Server::control_point_locked() const
+{
+    return {DataTableHelper::get_property_value_from_object<bool>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_bCPLocked")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::locked)::value_type>};
 }
 
 std::unique_ptr<Protocol::Tick> Server::create_tick() const
@@ -875,6 +1043,43 @@ std::unique_ptr<Protocol::Level> Server::create_level() const
     level->set_map_name(m_plugin.interfaces().engine_client().GetLevelName());
 
     return level;
+}
+
+std::unique_ptr<Protocol::ControlPointsUpdate> Server::create_control_point_update() const
+{
+    auto control_points_update = std::make_unique<Protocol::ControlPointsUpdate>();
+    auto total_number_of_control_points = number_of_control_points();
+
+    for (auto index = 0; index < total_number_of_control_points; index++)
+    {
+        Protocol::ControlPointsUpdate::ControlPoint control_point;
+
+        for (auto team = 0; team < PreviousObjectiveResource::s_max_control_point_teams_to_network; team++)
+        {
+            auto number_of_capturers = control_point_number_of_capturers();
+            auto capture_time = control_point_capture_time();
+
+            (*control_point.mutable_number_of_capturers())[team] =
+                number_of_capturers[control_point_index_team_array(index, team)];
+            (*control_point.mutable_capture_time())[team] = capture_time[control_point_index_team_array(index, team)];
+        }
+
+        auto capturing_team = control_point_capturing_team();
+        auto blocked = control_point_blocked();
+        auto owning_team = control_point_owning_team();
+        auto capture_percentage = control_point_capture_percentage();
+        auto locked = control_point_locked();
+
+        control_point.set_capturing_team(capturing_team[index]);
+        control_point.set_blocked(blocked[index]);
+        control_point.set_owning_team(owning_team[index]);
+        control_point.set_capture_percentage(capture_percentage[index]);
+        control_point.set_locked(locked[index]);
+
+        (*control_points_update->mutable_control_points())[index] = std::move(control_point);
+    }
+
+    return control_points_update;
 }
 
 std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t user_id) const
@@ -1056,6 +1261,90 @@ void Server::update(Badge<Plugin>)
         }
 
         m_previous_player_resource.reset();
+    }
+
+    if (m_previous_objective_resource.has_value())
+    {
+        auto total_number_of_control_points = number_of_control_points();
+
+        for (auto index = 0; index < total_number_of_control_points; index++)
+        {
+            if (auto previous_capturing_team = m_previous_objective_resource->capturing_team;
+                previous_capturing_team.has_value())
+            {
+                if (auto current_capturing_team = control_point_capturing_team();
+                    (*previous_capturing_team)[index] != current_capturing_team[index])
+                    (*get_or_create_pending_control_points_update().mutable_control_points())[index].set_capturing_team(
+                        current_capturing_team[index]);
+            }
+
+            if (auto previous_blocked = m_previous_objective_resource->blocked; previous_blocked.has_value())
+            {
+                if (auto current_blocked = control_point_blocked();
+                    (*previous_blocked)[index] != current_blocked[index])
+                    (*get_or_create_pending_control_points_update().mutable_control_points())[index].set_blocked(
+                        current_blocked[index]);
+            }
+
+            if (auto previous_owning_team = m_previous_objective_resource->owning_team;
+                previous_owning_team.has_value())
+            {
+                if (auto current_owning_team = control_point_owning_team();
+                    (*previous_owning_team)[index] != current_owning_team[index])
+                    (*get_or_create_pending_control_points_update().mutable_control_points())[index].set_owning_team(
+                        current_owning_team[index]);
+            }
+
+            if (auto previous_capture_percentage = m_previous_objective_resource->capture_percentage;
+                previous_capture_percentage.has_value())
+            {
+                if (auto current_capture_percentage = control_point_capture_percentage();
+                    (*previous_capture_percentage)[index] != current_capture_percentage[index])
+                    (*get_or_create_pending_control_points_update().mutable_control_points())[index]
+                        .set_capture_percentage(current_capture_percentage[index]);
+            }
+
+            if (auto previous_locked = m_previous_objective_resource->locked; previous_locked.has_value())
+            {
+                if (auto current_locked = control_point_locked(); (*previous_locked)[index] != current_locked[index])
+                    (*get_or_create_pending_control_points_update().mutable_control_points())[index].set_locked(
+                        current_locked[index]);
+            }
+
+            for (auto team = 0; team < PreviousObjectiveResource::s_max_control_point_teams_to_network; team++)
+            {
+                if (auto previous_number_of_capturers = m_previous_objective_resource->number_of_capturers;
+                    previous_number_of_capturers.has_value())
+                {
+                    auto current_number_of_capturers = control_point_number_of_capturers();
+
+                    if (auto array_index = control_point_index_team_array(index, team);
+                        (*previous_number_of_capturers)[array_index] != current_number_of_capturers[array_index])
+                        (*(*get_or_create_pending_control_points_update().mutable_control_points())[index]
+                              .mutable_number_of_capturers())[team] = current_number_of_capturers[array_index];
+                }
+
+                if (auto previous_capture_time = m_previous_objective_resource->capture_time;
+                    previous_capture_time.has_value())
+                {
+                    auto current_capture_time = control_point_capture_time();
+
+                    if (auto array_index = control_point_index_team_array(index, team);
+                        (*previous_capture_time)[array_index] != current_capture_time[array_index])
+                        (*(*get_or_create_pending_control_points_update().mutable_control_points())[index]
+                              .mutable_capture_time())[team] = current_capture_time[array_index];
+                }
+            }
+        }
+
+        if (m_pending_control_points_update)
+        {
+            Protocol::Event event;
+            event.set_allocated_control_points_update(m_pending_control_points_update.release());
+            send(event);
+        }
+
+        m_previous_objective_resource.reset();
     }
 
     if (!m_previous_my_weapons.empty())
@@ -1270,7 +1559,15 @@ void Server::update(Badge<Plugin>)
     }
 }
 
-void Server::on_create_entity(IClientNetworkable* entity) { m_player_resource = entity->GetDataTableBasePtr(); }
+void Server::on_create_player_resource(IClientNetworkable* entity)
+{
+    m_player_resource = entity->GetDataTableBasePtr();
+}
+
+void Server::on_create_objective_resource(IClientNetworkable* entity)
+{
+    m_objective_resource = entity->GetDataTableBasePtr();
+}
 
 void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
 {
@@ -1331,6 +1628,13 @@ void Server::level_init_post_entity(Badge<Plugin>)
         send(event);
     }
 
+    if (m_objective_resource)
+    {
+        Protocol::Event event;
+        event.set_allocated_control_points_update(create_control_point_update().release());
+        send(event);
+    }
+
     // Update our previous pause to our current paused state, so we don't send a second tick count update event when it
     // realizes this (may) have changed.
     m_previous_pause = m_plugin.interfaces().engine_client().IsPaused();
@@ -1351,6 +1655,7 @@ void Server::level_shutdown_pre_entity(Badge<Plugin>)
 
     m_game_rules = nullptr;
     m_player_resource = nullptr;
+    m_objective_resource = nullptr;
     // Default to not being paused.
     m_previous_pause = false;
 
@@ -1828,6 +2133,17 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
             break;
         }
         case Protocol::Event::kShutdown:
+            break;
+        case Protocol::Event::kControlPointsUpdate:
+        {
+            if (m_objective_resource)
+            {
+                Protocol::Event event;
+                event.set_allocated_control_points_update(create_control_point_update().release());
+                client.send(event);
+            }
+        }
+        break;
         case Protocol::Event::DATA_NOT_SET:
             break;
     }
