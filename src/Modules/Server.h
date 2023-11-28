@@ -74,6 +74,21 @@ public:
         std::optional<ResourceArray<float>> next_respawn_time;
     };
 
+    struct PreviousObjectiveResource
+    {
+        static constexpr size_t s_max_control_points = 8;
+        static constexpr size_t s_max_control_point_teams = 8;
+
+        // Instead of networking so many unnecessary teams, we'll only include the 3 we care about... and spectator.
+        static constexpr size_t s_max_control_point_teams_to_network = 4;
+
+        std::optional<std::array<uint32_t, s_max_control_points * s_max_control_point_teams>> number_of_capturers;
+        std::optional<std::array<uint32_t, s_max_control_points>> capturing_team;
+        std::optional<std::array<float, s_max_control_points * s_max_control_point_teams>> capture_time;
+        std::optional<std::array<bool, s_max_control_points>> blocked;
+        std::optional<std::array<uint32_t, s_max_control_points>> owning_team;
+    };
+
 private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{
@@ -96,6 +111,7 @@ private:
     std::set<uint32_t> m_pending_timer_updates;
     std::set<uint32_t> m_pending_team_updates;
     std::unique_ptr<Protocol::GameRulesUpdate> m_pending_game_rules_update;
+    std::unique_ptr<Protocol::ControlPointsUpdate> m_pending_control_points_update;
 
     std::map<uint8_t, std::unique_ptr<Protocol::PlayerUpdate>> m_pending_player_updates;
     std::map<uint32_t, std::unique_ptr<Protocol::PlayerUpdate::Weapon>> m_pending_weapon_updates;
@@ -103,6 +119,7 @@ private:
 
     std::map<uint8_t, std::set<Protocol::PlayerUpdate::Condition>> m_previous_player_conditions;
     std::map<uint8_t, int> m_previous_kill_streak;
+    std::optional<PreviousObjectiveResource> m_previous_objective_resource;
 
     static constexpr size_t s_max_ammo = 7;
     std::map<uint8_t, std::array<int, s_max_ammo>> m_previous_ammo;
@@ -120,12 +137,28 @@ private:
         return *m_previous_player_resource;
     }
 
+    PreviousObjectiveResource& get_or_create_previous_objective_resource()
+    {
+        if (!m_previous_objective_resource)
+            m_previous_objective_resource = {PreviousObjectiveResource{}};
+
+        return *m_previous_objective_resource;
+    }
+
     Protocol::GameRulesUpdate& get_or_create_pending_game_rules_update()
     {
         if (!m_pending_game_rules_update)
             m_pending_game_rules_update = std::make_unique<Protocol::GameRulesUpdate>();
 
         return *m_pending_game_rules_update;
+    }
+
+    Protocol::ControlPointsUpdate& get_or_create_pending_control_points_update()
+    {
+        if (!m_pending_control_points_update)
+            m_pending_control_points_update = std::make_unique<Protocol::ControlPointsUpdate>();
+
+        return *m_pending_control_points_update;
     }
 
     Protocol::PlayerUpdate& get_or_create_pending_player_update(uint8_t index)
@@ -167,7 +200,8 @@ private:
         return *inserted_pair->second;
     }
 
-    void on_create_entity(IClientNetworkable*);
+    void on_create_player_resource(IClientNetworkable*);
+    void on_create_objective_resource(IClientNetworkable*);
     void on_delete_entity(IClientNetworkable*, const char* reason, bool on_recreating_all_entities);
 
     std::optional<float> get_charge_level_for_player(IClientNetworkable*) const;
@@ -177,20 +211,34 @@ private:
     std::span<int> get_player_killstreaks(IClientNetworkable*) const;
     std::span<int> get_player_ammo(IClientNetworkable*) const;
 
+    uint32_t number_of_control_points() const;
+    std::span<uint32_t> control_point_number_of_capturers() const;
+    std::span<uint32_t> control_point_capturing_team() const;
+    std::span<float> control_point_capture_time() const;
+    std::span<bool> control_point_blocked() const;
+    std::span<uint32_t> control_point_owning_team() const;
+    size_t control_point_index_team_array(int index, int team) const
+    {
+        return index + (team * PreviousObjectiveResource::s_max_control_points);
+    }
+
     std::unique_ptr<Protocol::Tick> create_tick() const;
     std::unique_ptr<Protocol::TimerUpdate> create_timer_update(void* timer) const;
     std::unique_ptr<Protocol::TeamUpdate> create_team_update(void* team) const;
     std::unique_ptr<Protocol::PlayerUpdate::Weapon> create_player_update_weapon(IClientNetworkable* weapon) const;
     std::unique_ptr<Protocol::PlayerUpdate::Statistics> create_player_update_statistics(void* player) const;
     std::unique_ptr<Protocol::Level> create_level() const;
+    std::unique_ptr<Protocol::ControlPointsUpdate> create_control_point_update() const;
 
     std::unique_ptr<Protocol::Player> create_player_from_user_id(uint8_t user_id) const;
 
     void* m_game_rules{};
     void* m_player_resource{};
+    void* m_objective_resource{};
     bool m_previous_pause{};
     uint32_t m_last_tick_update{};
     CreateClientClassFn m_tf_player_resource_create_fn_original{};
+    CreateClientClassFn m_tf_objective_resource_create_fn_original{};
 
     // TODO: In the future, we should not define this list ourselves, but rather the client should tell us which convars
     //       it is interested in.
