@@ -45,7 +45,7 @@ add_subdirectory(spdlog)
 add_subdirectory(JMP)
 
 set(SUBHOOK_TESTS OFF)
-set(SUBHOOK_STATIC OFF)
+set(SUBHOOK_STATIC ON)
 add_subdirectory(subhook)
 
 include(protobuf/cmake/protobuf-generate.cmake)
