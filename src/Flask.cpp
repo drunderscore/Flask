@@ -59,11 +59,19 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         }
     });
 
-    m_client_library_bytes = JMP::Platform::get_bytes_for_library_name(s_client_library_name.data());
-    m_engine_library_bytes = JMP::Platform::get_bytes_for_library_name("bin/engine.so");
+    try
+    {
+        m_client_library_bytes = JMP::Platform::get_bytes_for_library_name(s_client_library_name.data());
+        m_engine_library_bytes = JMP::Platform::get_bytes_for_library_name(s_engine_library_name.data());
 
-    JMP::Platform::modify_memory_protection(m_client_library_bytes, {.read = true, .write = true, .execute = true});
-    JMP::Platform::modify_memory_protection(m_engine_library_bytes, {.read = true, .write = true, .execute = true});
+        JMP::Platform::modify_memory_protection(m_client_library_bytes, {.read = true, .write = true, .execute = true});
+        JMP::Platform::modify_memory_protection(m_engine_library_bytes, {.read = true, .write = true, .execute = true});
+    }
+    catch (const std::exception& ex)
+    {
+        spdlog::error("Failed to get library bytes or modify memory protection: {}", ex.what());
+        return false;
+    }
 
     try
     {
