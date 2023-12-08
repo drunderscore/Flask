@@ -1048,6 +1048,8 @@ void Server::level_shutdown_pre_entity(Badge<Plugin>)
     m_pending_player_updates.clear();
     m_previous_player_resource.reset();
     m_pending_weapon_updates.clear();
+    m_previous_player_conditions.clear();
+    m_previous_my_weapons.clear();
 
     m_game_rules = nullptr;
     m_player_resource = nullptr;
