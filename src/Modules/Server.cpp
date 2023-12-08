@@ -922,6 +922,9 @@ void Server::update(Badge<Flask::Plugin>)
 
             auto owner = m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(owner_handle);
 
+            if (!owner)
+                continue;
+
             auto my_weapons = get_weapon_handles_for_player(owner);
             auto active_weapon_it = std::find(my_weapons.begin(), my_weapons.end(), entity->GetRefEHandle());
 
