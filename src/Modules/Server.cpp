@@ -1024,6 +1024,10 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
         event.set_allocated_player_remove(player_remove);
 
         send(event);
+
+        m_pending_player_updates.erase(entity_index);
+        m_previous_my_weapons.erase(entity_index);
+        m_previous_player_conditions.erase(entity_index);
     }
     else
     {
