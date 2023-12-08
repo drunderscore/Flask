@@ -897,6 +897,12 @@ void Server::update(Badge<Flask::Plugin>)
                     auto weapon =
                         m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(weapon_handle);
 
+                    if (!weapon)
+                    {
+                        get_or_create_pending_player_update(entity_id).add_weapons_removed(i);
+                        continue;
+                    }
+
                     (*get_or_create_pending_player_update(entity_id).mutable_weapons())[i] =
                         std::move(*create_player_update_weapon(weapon).release());
 
