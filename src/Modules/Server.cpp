@@ -870,13 +870,16 @@ void Server::update(Badge<Flask::Plugin>)
     {
         for (auto& [entity_id, previous_weapons] : m_previous_my_weapons)
         {
-            auto player =
-                m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id)->GetDataTableBasePtr();
+            auto player = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+
+            if (!player)
+                continue;
 
             auto my_weapons =
                 std::span(DataTableHelper::get_property_value_from_object<int>(
-                              player, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-                                          "DT_BaseCombatCharacter", "m_hMyWeapons")),
+                              player->GetDataTableBasePtr(),
+                              *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                  "DT_BaseCombatCharacter", "m_hMyWeapons")),
                           s_max_weapons);
 
             for (auto i = 0; i < s_max_weapons; i++)
