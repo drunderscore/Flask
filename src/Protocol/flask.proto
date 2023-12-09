@@ -176,6 +176,7 @@ message PlayerUpdate
 
   optional float rage_meter = 21;
   optional bool is_rage_draining = 22;
+  optional int32 kill_streak = 23;
 };
 
 message PlayerRemove {

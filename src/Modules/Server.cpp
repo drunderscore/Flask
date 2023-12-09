@@ -369,6 +369,14 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                                     .set_is_rage_draining(*static_cast<bool*>(output_variable));
                                             });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nStreaks"),
+        [this](auto, auto output_variable, auto, auto object_id) {
+            // m_nStreaks is an array of multiple streaks, but index 1 is an always-tracked kill streak count,
+            // regardless of weapon attribute.
+            m_previous_kill_streak[object_id] = (*reinterpret_cast<int**>(output_variable))[1];
+        });
+
     m_plugin.entity_listener().add_create_entity_callback([this](auto entity) { on_create_entity(entity); });
     m_plugin.entity_listener().add_delete_entity_callback(
         [this](auto entity, auto reason, auto on_recreating_all_entities) {
@@ -589,6 +597,22 @@ std::set<Protocol::PlayerUpdate_Condition> Server::get_player_conditions(IClient
     insert_conditions(player_conditions_ex_3_property, 96);
 
     return std::move(conditions);
+}
+
+std::span<int> Server::get_player_killstreaks(IClientNetworkable* player) const
+{
+    auto tf_player_shared_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayer", "m_Shared");
+
+    auto tf_player_shared = DataTableHelper::get_property_value_from_object<void>(player->GetDataTableBasePtr(),
+                                                                                  *tf_player_shared_property);
+
+    auto tf_player_shared_streaks_property =
+        *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared",
+                                                                                        "m_nStreaks");
+
+    return {DataTableHelper::get_property_value_from_object<int>(tf_player_shared, tf_player_shared_streaks_property),
+            4};
 }
 
 std::unique_ptr<Protocol::Tick> Server::create_tick() const
@@ -992,6 +1016,24 @@ void Server::update(Badge<Flask::Plugin>)
         m_previous_player_conditions.clear();
     }
 
+    if (!m_previous_kill_streak.empty())
+    {
+        for (auto& [entity_id, previous_kill_streak] : m_previous_kill_streak)
+        {
+            auto player = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+
+            if (!player)
+                continue;
+
+            auto streaks = get_player_killstreaks(player);
+
+            if (previous_kill_streak != streaks[1])
+                get_or_create_pending_player_update(entity_id).set_kill_streak(streaks[1]);
+        }
+
+        m_previous_kill_streak.clear();
+    }
+
     if (!m_pending_player_updates.empty())
     {
         for (auto& [entity_id, player_update] : m_pending_player_updates)
@@ -1055,6 +1097,7 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
         m_pending_player_updates.erase(entity_index);
         m_previous_my_weapons.erase(entity_index);
         m_previous_player_conditions.erase(entity_index);
+        m_previous_kill_streak.erase(entity_index);
     }
     else
     {
@@ -1084,6 +1127,7 @@ void Server::level_shutdown_pre_entity(Badge<Plugin>)
     m_pending_weapon_updates.clear();
     m_previous_player_conditions.clear();
     m_previous_my_weapons.clear();
+    m_previous_kill_streak.clear();
 
     m_game_rules = nullptr;
     m_player_resource = nullptr;
@@ -1414,6 +1458,9 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                     player_update->set_is_rage_draining(*DataTableHelper::get_property_value_from_object<bool>(
                         player_shared_local, *network_cache.find_receive_property_by_table_name_and_property_name(
                                                  "DT_TFPlayerSharedLocal", "m_bRageDraining")));
+
+                    auto streaks = get_player_killstreaks(entity);
+                    player_update->set_kill_streak(streaks[1]);
 
                     event.set_allocated_player_update(player_update);
 
