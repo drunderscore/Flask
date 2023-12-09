@@ -356,6 +356,19 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                 .set_disguise_class(*static_cast<int*>(output_variable));
         });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerSharedLocal", "m_flRageMeter"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update(data->m_ObjectID).set_rage_meter(*static_cast<float*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TFPlayerSharedLocal", "m_bRageDraining"),
+                                            [this](auto data, auto, auto output_variable) {
+                                                get_or_create_pending_player_update(data->m_ObjectID)
+                                                    .set_is_rage_draining(*static_cast<bool*>(output_variable));
+                                            });
+
     m_plugin.entity_listener().add_create_entity_callback([this](auto entity) { on_create_entity(entity); });
     m_plugin.entity_listener().add_delete_entity_callback(
         [this](auto entity, auto reason, auto on_recreating_all_entities) {
@@ -467,6 +480,11 @@ Server::~Server()
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nDisguiseTeam"));
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nDisguiseClass"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerSharedLocal", "m_flRageMeter"));
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TFPlayerSharedLocal", "m_bRageDraining"));
 
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
@@ -1381,6 +1399,21 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                     player_update->set_disguise_class(*DataTableHelper::get_property_value_from_object<int>(
                         player_shared, *network_cache.find_receive_property_by_table_name_and_property_name(
                                            "DT_TFPlayerShared", "m_nDisguiseClass")));
+
+                    auto tf_player_shared_local_property =
+                        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                            "DT_TFPlayerShared", "tfsharedlocaldata");
+
+                    auto player_shared_local = DataTableHelper::get_property_value_from_object<void>(
+                        player_shared, *tf_player_shared_local_property);
+
+                    player_update->set_rage_meter(*DataTableHelper::get_property_value_from_object<float>(
+                        player_shared_local, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                                 "DT_TFPlayerSharedLocal", "m_flRageMeter")));
+
+                    player_update->set_is_rage_draining(*DataTableHelper::get_property_value_from_object<bool>(
+                        player_shared_local, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                                 "DT_TFPlayerSharedLocal", "m_bRageDraining")));
 
                     event.set_allocated_player_update(player_update);
 

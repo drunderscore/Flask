@@ -173,6 +173,9 @@ message PlayerUpdate
 
   optional uint32 disguise_team = 19;
   optional uint32 disguise_class = 20;
+
+  optional float rage_meter = 21;
+  optional bool is_rage_draining = 22;
 };
 
 message PlayerRemove {
