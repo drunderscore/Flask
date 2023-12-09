@@ -1046,16 +1046,21 @@ void Server::update(Badge<Flask::Plugin>)
 
                 auto player = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
 
-                CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
-                    player->GetDataTableBasePtr(),
-                    *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-                        "DT_BaseCombatCharacter", "m_hActiveWeapon")));
+                // FIXME: If our active weapon index becomes invalid, we simply don't transmit that change. This may
+                //        confuse clients who simply use the previous active weapon, which may not be a valid index
+                //        anymore? Hasn't seemed to be an issue yet.
+                if (CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
+                        player->GetDataTableBasePtr(),
+                        *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                            "DT_BaseCombatCharacter", "m_hActiveWeapon")));
+                    active_weapon_handle.IsValid())
+                {
+                    auto my_weapons = get_weapon_handles_for_player(player);
 
-                auto my_weapons = get_weapon_handles_for_player(player);
-
-                if (auto active_weapon_it = std::find(my_weapons.begin(), my_weapons.end(), active_weapon_handle);
-                    active_weapon_it != my_weapons.end())
-                    player_update->set_active_weapon(std::distance(my_weapons.begin(), active_weapon_it));
+                    if (auto active_weapon_it = std::find(my_weapons.begin(), my_weapons.end(), active_weapon_handle);
+                        active_weapon_it != my_weapons.end())
+                        player_update->set_active_weapon(std::distance(my_weapons.begin(), active_weapon_it));
+                }
             }
 
             Protocol::Event event;
