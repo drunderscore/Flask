@@ -377,6 +377,15 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             m_previous_kill_streak[object_id] = (*reinterpret_cast<int**>(output_variable))[1];
         });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalPlayerExclusive", "m_iAmmo"),
+        [this](auto, auto output_variable, auto, auto object_id) {
+            auto current_values = std::span(*reinterpret_cast<int**>(output_variable), s_max_ammo);
+            auto& values = m_previous_ammo[object_id];
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+        });
+
     m_plugin.entity_listener().add_create_entity_callback([this](auto entity) { on_create_entity(entity); });
     m_plugin.entity_listener().add_delete_entity_callback(
         [this](auto entity, auto reason, auto on_recreating_all_entities) {
@@ -493,6 +502,9 @@ Server::~Server()
         "DT_TFPlayerSharedLocal", "m_flRageMeter"));
     data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
         "DT_TFPlayerSharedLocal", "m_bRageDraining"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalPlayerExclusive", "m_iAmmo"));
 
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
@@ -613,6 +625,22 @@ std::span<int> Server::get_player_killstreaks(IClientNetworkable* player) const
 
     return {DataTableHelper::get_property_value_from_object<int>(tf_player_shared, tf_player_shared_streaks_property),
             4};
+}
+
+std::span<int> Server::get_player_ammo(IClientNetworkable* player) const
+{
+    auto base_player_local_data_property =
+        *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BasePlayer", "localdata");
+
+    auto local_data = DataTableHelper::get_property_value_from_object<void>(player->GetDataTableBasePtr(),
+                                                                            base_player_local_data_property);
+
+    auto local_player_exclusive_ammo_property =
+        *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_LocalPlayerExclusive",
+                                                                                        "m_iAmmo");
+
+    return {DataTableHelper::get_property_value_from_object<int>(local_data, local_player_exclusive_ammo_property),
+            s_max_ammo};
 }
 
 std::unique_ptr<Protocol::Tick> Server::create_tick() const
@@ -957,6 +985,27 @@ void Server::update(Badge<Flask::Plugin>)
         m_previous_my_weapons.clear();
     }
 
+    if (!m_previous_ammo.empty())
+    {
+        for (auto& [entity_id, previous_ammo] : m_previous_ammo)
+        {
+            auto player = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+
+            if (!player)
+                continue;
+
+            auto current_ammo = get_player_ammo(player);
+
+            for (auto i = 0; i < s_max_ammo; i++)
+            {
+                if (previous_ammo[i] != current_ammo[i])
+                    (*get_or_create_pending_player_update(entity_id).mutable_ammo())[i] = current_ammo[i];
+            }
+        }
+
+        m_previous_ammo.clear();
+    }
+
     if (!m_pending_weapon_updates.empty())
     {
         for (auto& [entity_id, weapon_update] : m_pending_weapon_updates)
@@ -1103,6 +1152,7 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
         m_previous_my_weapons.erase(entity_index);
         m_previous_player_conditions.erase(entity_index);
         m_previous_kill_streak.erase(entity_index);
+        m_previous_ammo.erase(entity_index);
     }
     else
     {
@@ -1133,6 +1183,7 @@ void Server::level_shutdown_pre_entity(Badge<Plugin>)
     m_previous_player_conditions.clear();
     m_previous_my_weapons.clear();
     m_previous_kill_streak.clear();
+    m_previous_ammo.clear();
 
     m_game_rules = nullptr;
     m_player_resource = nullptr;
@@ -1466,6 +1517,10 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
 
                     auto streaks = get_player_killstreaks(entity);
                     player_update->set_kill_streak(streaks[1]);
+
+                    auto ammo = get_player_ammo(entity);
+                    for (auto i = 0; i < s_max_ammo; i++)
+                        (*player_update->mutable_ammo())[i] = ammo[i];
 
                     event.set_allocated_player_update(player_update);
 

@@ -88,6 +88,9 @@ private:
     std::map<uint8_t, std::set<Protocol::PlayerUpdate_Condition>> m_previous_player_conditions;
     std::map<uint8_t, int> m_previous_kill_streak;
 
+    static constexpr size_t s_max_ammo = 7;
+    std::map<uint8_t, std::array<int, s_max_ammo>> m_previous_ammo;
+
     static constexpr size_t s_max_weapons = 48;
     std::map<uint8_t, std::array<int, s_max_weapons>> m_previous_my_weapons;
 
@@ -144,6 +147,7 @@ private:
     std::array<CBaseHandle, s_max_weapons> get_weapon_handles_for_player(IClientNetworkable*) const;
     std::set<Protocol::PlayerUpdate_Condition> get_player_conditions(IClientNetworkable*) const;
     std::span<int> get_player_killstreaks(IClientNetworkable*) const;
+    std::span<int> get_player_ammo(IClientNetworkable*) const;
 
     std::unique_ptr<Protocol::Tick> create_tick() const;
     std::unique_ptr<Protocol::TimerUpdate> create_timer_update(void* timer) const;

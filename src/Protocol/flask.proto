@@ -177,6 +177,9 @@ message PlayerUpdate
   optional float rage_meter = 21;
   optional bool is_rage_draining = 22;
   optional int32 kill_streak = 23;
+
+  // Cannot use enums as map keys unfortunately...
+  map<int32, int32> ammo = 24;
 };
 
 message PlayerRemove {
