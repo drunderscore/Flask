@@ -77,6 +77,8 @@ private:
     Plugin& m_plugin;
     ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
     ManagedConCommand m_flask_send_user_interaction{"flask_send_user_interaction", flask_send_user_interaction};
+    ManagedConVar m_flask_network_tick_count_update_rate{"flask_network_tick_count_update_rate", "200", FCVAR_NONE,
+                                                         "Update the tick count to clients every this many ticks"};
 
     std::set<uint32_t> m_pending_timer_updates;
     std::set<uint32_t> m_pending_team_updates;
@@ -160,6 +162,7 @@ private:
     void* m_game_rules{};
     void* m_player_resource{};
     bool m_previous_pause{};
+    uint32_t m_last_tick_update{};
 
     // TODO: In the future, we should not define this list ourselves, but rather the client should tell us which convars
     //       it is interested in.

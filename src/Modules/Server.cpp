@@ -801,9 +801,23 @@ std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t use
 
 void Server::update(Badge<Flask::Plugin>)
 {
-    if (m_previous_pause != m_plugin.interfaces().engine_client().IsPaused())
+    auto is_paused = m_plugin.interfaces().engine_client().IsPaused();
+    auto tick_count = m_plugin.interfaces().engine_tool().ClientTick();
+    auto tick_count_update_rate = m_flask_network_tick_count_update_rate->GetInt();
+
+    if (m_previous_pause != is_paused)
     {
         m_previous_pause = !m_previous_pause;
+
+        Protocol::Event event;
+        event.set_allocated_tick(create_tick().release());
+        send(event);
+    }
+    else if (!is_paused && tick_count_update_rate != 0 && m_last_tick_update != tick_count &&
+             tick_count % tick_count_update_rate == 0)
+    {
+        m_last_tick_update = tick_count;
+        spdlog::debug("Sending manual tick update ({})", m_plugin.interfaces().engine_tool().ClientTick());
 
         Protocol::Event event;
         event.set_allocated_tick(create_tick().release());
