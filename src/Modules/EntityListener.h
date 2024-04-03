@@ -14,7 +14,6 @@ class EntityListener
 {
 public:
     explicit EntityListener(Plugin&);
-    ~EntityListener();
 
     using CreateEntityCallback = std::function<void(IClientNetworkable*)>;
     using DeleteEntityCallback =
@@ -44,8 +43,8 @@ private:
     static void __cdecl on_delete_dll_entity(int entity_index, const char* reason, bool on_recreating_all_entities);
 #endif
 
-    subhook_t m_create_dll_entity_subhook{};
-    subhook_t m_delete_dll_entity_subhook{};
+    subhook::Hook m_create_dll_entity_subhook{};
+    subhook::Hook m_delete_dll_entity_subhook{};
     std::vector<CreateEntityCallback> m_create_dll_entity_callbacks;
     std::vector<DeleteEntityCallback> m_delete_dll_entity_callbacks;
 };

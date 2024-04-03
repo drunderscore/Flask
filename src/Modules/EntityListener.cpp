@@ -29,41 +29,13 @@ EntityListener::EntityListener(Plugin& plugin)
     if (!delete_dll_entity_function)
         throw std::runtime_error("Failed to find CL_DeleteDLLEntity");
 
-    m_create_dll_entity_subhook = subhook_new(create_dll_entity_function, reinterpret_cast<void*>(on_create_dll_entity),
-                                              static_cast<subhook_flags_t>(0));
-    if (subhook_install(m_create_dll_entity_subhook) != 0)
-    {
-        subhook_free(m_create_dll_entity_subhook);
+    if (!m_create_dll_entity_subhook.Install(create_dll_entity_function, reinterpret_cast<void*>(on_create_dll_entity),
+                                             subhook::HookFlags::HookNoFlags))
         throw std::runtime_error("Failed to hook CL_CreateDLLEntity");
-    }
 
-    m_delete_dll_entity_subhook = subhook_new(delete_dll_entity_function, reinterpret_cast<void*>(on_delete_dll_entity),
-                                              static_cast<subhook_flags_t>(0));
-    if (subhook_install(m_delete_dll_entity_subhook) != 0)
-    {
-        subhook_remove(m_create_dll_entity_subhook);
-        subhook_free(m_create_dll_entity_subhook);
-
-        subhook_free(m_delete_dll_entity_subhook);
+    if (!m_delete_dll_entity_subhook.Install(delete_dll_entity_function, reinterpret_cast<void*>(on_delete_dll_entity),
+                                             subhook::HookFlags::HookNoFlags))
         throw std::runtime_error("Failed to hook CL_DeleteDLLEntity");
-    }
-}
-
-EntityListener::~EntityListener()
-{
-    if (m_create_dll_entity_subhook)
-    {
-        subhook_remove(m_create_dll_entity_subhook);
-        subhook_free(m_create_dll_entity_subhook);
-        m_create_dll_entity_subhook = nullptr;
-    }
-
-    if (m_delete_dll_entity_subhook)
-    {
-        subhook_remove(m_delete_dll_entity_subhook);
-        subhook_free(m_delete_dll_entity_subhook);
-        m_delete_dll_entity_subhook = nullptr;
-    }
 }
 
 IClientNetworkable* EntityListener::on_create_dll_entity(int entity_index, int client_class, int serial_number)
@@ -71,12 +43,13 @@ IClientNetworkable* EntityListener::on_create_dll_entity(int entity_index, int c
     // This hook is much more useful if we call it after invoking the original.
 
     auto& subhook = Plugin::the().entity_listener().m_create_dll_entity_subhook;
+    IClientNetworkable* entity;
 
-    auto create_dll_entity = subhook_get_src(subhook);
-    subhook_remove(subhook);
-    auto entity =
-        reinterpret_cast<decltype(on_create_dll_entity)*>(create_dll_entity)(entity_index, client_class, serial_number);
-    subhook_install(subhook);
+    {
+        subhook::ScopedHookRemove create_dll_entity_subhook_scoped_remove(&subhook);
+        entity = reinterpret_cast<decltype(on_create_dll_entity)*>(subhook.GetSrc())(entity_index, client_class,
+                                                                                     serial_number);
+    }
 
     for (auto& callback : Plugin::the().entity_listener().m_create_dll_entity_callbacks)
         callback(entity);
@@ -93,11 +66,11 @@ void EntityListener::on_delete_dll_entity(int entity_index, const char* reason, 
 
         auto& subhook = Plugin::the().entity_listener().m_delete_dll_entity_subhook;
 
-        auto delete_dll_entity = subhook_get_src(subhook);
-        subhook_remove(subhook);
-        reinterpret_cast<decltype(on_delete_dll_entity)*>(delete_dll_entity)(entity_index, reason,
-                                                                             on_recreating_all_entities);
-        subhook_install(subhook);
+        {
+            subhook::ScopedHookRemove delete_dll_entity_subhook_scope_remove(&subhook);
+            reinterpret_cast<decltype(on_delete_dll_entity)*>(subhook.GetSrc())(entity_index, reason,
+                                                                                on_recreating_all_entities);
+        }
     }
 }
 }
