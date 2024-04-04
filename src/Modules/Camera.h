@@ -58,7 +58,7 @@ private:
 
     C_HLTVCameraSingletonGetterFn m_hltv_camera_singleton_getter{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
-    C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_mode_function{};
+    C_HLTVCameraSetModeFn m_hltv_camera_set_mode_function{};
     C_HLTVCameraCalcViewFn m_hltv_camera_calc_view{};
     subhook::Hook m_hltv_camera_calc_view_subhook{};
 };
