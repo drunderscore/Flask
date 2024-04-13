@@ -229,6 +229,18 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             get_or_create_pending_player_update_weapon(data->m_ObjectID).set_clip(*static_cast<int*>(output_variable));
         });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_ScriptCreatedItem",
+                                                                             "m_iItemDefinitionIndex"),
+        [this](auto data, auto, auto output_variable) {
+            auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(data->m_ObjectID);
+            if (entity->GetClientClass()->GetName() == "CTFDroppedWeapon"sv)
+                return;
+
+            get_or_create_pending_player_update_weapon(data->m_ObjectID)
+                .set_definition_index(*static_cast<uint16_t*>(output_variable));
+        });
+
     data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
                                                 "DT_TFPlayerScoringDataExclusive", "m_iKills"),
                                             [this](auto data, auto output_structure, auto output_variable) {
@@ -471,6 +483,9 @@ Server::~Server()
 
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalWeaponData", "m_iClip1"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_ScriptCreatedItem", "m_iItemDefinitionIndex"));
 
     data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
         "DT_TFPlayerScoringDataExclusive", "m_iKills"));
