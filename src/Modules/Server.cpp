@@ -1667,9 +1667,12 @@ void Server::FireGameEvent(IGameEvent* event)
         auto victim_entity = m_plugin.interfaces().client_entity_list().GetClientEntity(
             m_plugin.interfaces().engine_client().GetPlayerForUserID(event->GetInt("userid")));
 
-        if (auto charge_level = get_charge_level_for_player(victim_entity);
-            charge_level.has_value() && *charge_level >= 1.0f)
-            player_death->set_medic_charged(true);
+        if (victim_entity)
+        {
+            if (auto charge_level = get_charge_level_for_player(victim_entity);
+                charge_level.has_value() && *charge_level >= 1.0f)
+                player_death->set_medic_charged(true);
+        }
 
         protocol_event.set_allocated_player_death(player_death);
 
