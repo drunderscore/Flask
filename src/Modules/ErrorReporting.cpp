@@ -144,7 +144,7 @@ void ErrorReporting::level_init_post_entity(Badge<Plugin>)
     sentry_add_breadcrumb(breadcrumb);
 }
 
-void ErrorReporting::level_shutdown_pre_entity(Badge<Flask::Plugin>)
+void ErrorReporting::level_shutdown_pre_entity(Badge<Plugin>)
 {
     auto breadcrumb = sentry_value_new_breadcrumb("default", "Level shutdown");
 

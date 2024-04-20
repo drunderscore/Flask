@@ -25,7 +25,7 @@ public:
     explicit Server(Plugin&);
     ~Server() override;
 
-    void did_receive_command(Badge<Flask::Network::Client>, const Protocol::Command&) override;
+    void did_receive_command(Badge<Network::Client>, const Protocol::Command&) override;
     void did_client_listen_to_event(Badge<Network::Client>, Network::Client&, Protocol::Event::DataCase) override;
 
     void on_client_connected(Badge<Network::Client>, Network::Client&) override;
@@ -137,7 +137,7 @@ private:
             return *it->second;
 
         auto [inserted_pair, _] =
-            m_pending_weapon_updates.insert({index, std::make_unique<flask::protocol::PlayerUpdate_Weapon>()});
+            m_pending_weapon_updates.insert({index, std::make_unique<Protocol::PlayerUpdate_Weapon>()});
         return *inserted_pair->second;
     }
 

@@ -814,7 +814,7 @@ std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t use
     return player;
 }
 
-void Server::update(Badge<Flask::Plugin>)
+void Server::update(Badge<Plugin>)
 {
     auto is_paused = m_plugin.interfaces().engine_client().IsPaused();
     auto tick_count = m_plugin.interfaces().engine_tool().ClientTick();
@@ -1228,12 +1228,12 @@ void Server::did_receive_command(Badge<Network::Client>, const Protocol::Command
 {
     switch (command.data_case())
     {
-        case flask::protocol::Command::kListen:
+        case Protocol::Command::kListen:
             break;
-        case flask::protocol::Command::kExecute:
+        case Protocol::Command::kExecute:
             m_plugin.interfaces().engine_tool().Command(command.execute().command().c_str());
             break;
-        case flask::protocol::Command::kObserve:
+        case Protocol::Command::kObserve:
         {
             auto& camera = m_plugin.camera();
             auto& observe = command.observe();
@@ -1268,7 +1268,7 @@ void Server::did_receive_command(Badge<Network::Client>, const Protocol::Command
 
             break;
         }
-        case flask::protocol::Command::DATA_NOT_SET:
+        case Protocol::Command::DATA_NOT_SET:
             break;
     }
 }
