@@ -333,7 +333,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             {
                 if (((1 << i) & conditions) != 0)
                     previous_conditions.insert(
-                        static_cast<Protocol::PlayerUpdate_Condition>(i + starting_condition_index));
+                        static_cast<Protocol::PlayerUpdate::Condition>(i + starting_condition_index));
             }
         };
     };
@@ -584,7 +584,7 @@ std::array<CBaseHandle, Server::s_max_weapons> Server::get_weapon_handles_for_pl
     return my_weapons_handles;
 }
 
-std::set<Protocol::PlayerUpdate_Condition> Server::get_player_conditions(IClientNetworkable* player) const
+std::set<Protocol::PlayerUpdate::Condition> Server::get_player_conditions(IClientNetworkable* player) const
 {
     auto tf_player_shared_property =
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayer", "m_Shared");
@@ -603,7 +603,7 @@ std::set<Protocol::PlayerUpdate_Condition> Server::get_player_conditions(IClient
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared",
                                                                                        "m_nPlayerCondEx3");
 
-    std::set<Protocol::PlayerUpdate_Condition> conditions;
+    std::set<Protocol::PlayerUpdate::Condition> conditions;
 
     auto player_shared = DataTableHelper::get_property_value_from_object<void>(player->GetDataTableBasePtr(),
                                                                                *tf_player_shared_property);
@@ -614,7 +614,7 @@ std::set<Protocol::PlayerUpdate_Condition> Server::get_player_conditions(IClient
         for (auto i = 0; i < 32; i++)
         {
             if (((1 << i) & value) != 0)
-                conditions.insert(static_cast<Protocol::PlayerUpdate_Condition>(i + starting_condition_index));
+                conditions.insert(static_cast<Protocol::PlayerUpdate::Condition>(i + starting_condition_index));
         }
     };
 
@@ -711,7 +711,7 @@ std::unique_ptr<Protocol::TeamUpdate> Server::create_team_update(void* team) con
     return team_update;
 }
 
-std::unique_ptr<Protocol::PlayerUpdate_Weapon> Server::create_player_update_weapon(IClientNetworkable* weapon) const
+std::unique_ptr<Protocol::PlayerUpdate::Weapon> Server::create_player_update_weapon(IClientNetworkable* weapon) const
 {
     auto& network_cache = m_plugin.network_cache();
 
@@ -739,7 +739,7 @@ std::unique_ptr<Protocol::PlayerUpdate_Weapon> Server::create_player_update_weap
     auto local_weapon_data = DataTableHelper::get_property_value_from_object<void>(
         weapon->GetDataTableBasePtr(), *base_combat_weapon_local_weapon_data);
 
-    auto weapon_update = std::make_unique<Protocol::PlayerUpdate_Weapon>();
+    auto weapon_update = std::make_unique<Protocol::PlayerUpdate::Weapon>();
 
     if (weapon->GetClientClass()->GetName() == "CWeaponMedigun"sv)
     {
@@ -761,7 +761,7 @@ std::unique_ptr<Protocol::PlayerUpdate_Weapon> Server::create_player_update_weap
     return weapon_update;
 }
 
-std::unique_ptr<Protocol::PlayerUpdate_Statistics> Server::create_player_update_statistics(void* player) const
+std::unique_ptr<Protocol::PlayerUpdate::Statistics> Server::create_player_update_statistics(void* player) const
 {
     auto& network_cache = m_plugin.network_cache();
     auto score_data = get_score_data_for_player(player);
@@ -776,7 +776,7 @@ std::unique_ptr<Protocol::PlayerUpdate_Statistics> Server::create_player_update_
         network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerScoringDataExclusive",
                                                                             "m_iKillAssists");
 
-    auto statistics = std::make_unique<Protocol::PlayerUpdate_Statistics>();
+    auto statistics = std::make_unique<Protocol::PlayerUpdate::Statistics>();
 
     statistics->set_kills(static_cast<uint32_t>(
         *DataTableHelper::get_property_value_from_object<int>(score_data, *player_scoring_data_exclusive_kills)));
@@ -1078,7 +1078,7 @@ void Server::update(Badge<Plugin>)
             auto player = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
             auto current_conditions = get_player_conditions(player);
 
-            std::set<Protocol::PlayerUpdate_Condition> different_conditions;
+            std::set<Protocol::PlayerUpdate::Condition> different_conditions;
             std::set_union(previous_conditions.begin(), previous_conditions.end(), current_conditions.begin(),
                            current_conditions.end(), std::inserter(different_conditions, different_conditions.end()));
 
@@ -1659,7 +1659,7 @@ void Server::FireGameEvent(IGameEvent* event)
         player_death->set_weapon_definition_index(event->GetInt("weapon_def_index"));
 
         auto crit_type = event->GetInt("crit_type");
-        player_death->set_crit(static_cast<Protocol::PlayerDeath_Crit>(crit_type));
+        player_death->set_crit(static_cast<Protocol::PlayerDeath::Crit>(crit_type));
 
         if (auto assister_userid = event->GetInt("assister"); assister_userid != -1)
             player_death->set_allocated_assister(create_player_from_user_id(assister_userid).release());

@@ -87,7 +87,7 @@ private:
     std::map<uint8_t, std::unique_ptr<Protocol::PlayerUpdate>> m_pending_player_updates;
     std::map<uint32_t, std::unique_ptr<Protocol::PlayerUpdate::Weapon>> m_pending_weapon_updates;
     std::optional<PreviousPlayerResource> m_previous_player_resource;
-    std::map<uint8_t, std::set<Protocol::PlayerUpdate_Condition>> m_previous_player_conditions;
+    std::map<uint8_t, std::set<Protocol::PlayerUpdate::Condition>> m_previous_player_conditions;
     std::map<uint8_t, int> m_previous_kill_streak;
 
     static constexpr size_t s_max_ammo = 7;
@@ -121,23 +121,23 @@ private:
         return *inserted_pair->second;
     }
 
-    Protocol::PlayerUpdate_Statistics& get_or_create_pending_player_update_statistics(uint8_t index)
+    Protocol::PlayerUpdate::Statistics& get_or_create_pending_player_update_statistics(uint8_t index)
     {
         auto& player_update = get_or_create_pending_player_update(index);
 
         if (!player_update.has_statistics())
-            player_update.set_allocated_statistics(new Protocol::PlayerUpdate_Statistics);
+            player_update.set_allocated_statistics(new Protocol::PlayerUpdate::Statistics);
 
         return *player_update.mutable_statistics();
     }
 
-    Protocol::PlayerUpdate_Weapon& get_or_create_pending_player_update_weapon(uint32_t index)
+    Protocol::PlayerUpdate::Weapon& get_or_create_pending_player_update_weapon(uint32_t index)
     {
         if (auto it = m_pending_weapon_updates.find(index); it != m_pending_weapon_updates.end())
             return *it->second;
 
         auto [inserted_pair, _] =
-            m_pending_weapon_updates.insert({index, std::make_unique<Protocol::PlayerUpdate_Weapon>()});
+            m_pending_weapon_updates.insert({index, std::make_unique<Protocol::PlayerUpdate::Weapon>()});
         return *inserted_pair->second;
     }
 
@@ -147,15 +147,15 @@ private:
     std::optional<float> get_charge_level_for_player(IClientNetworkable*) const;
     void* get_score_data_for_player(void*) const;
     std::array<CBaseHandle, s_max_weapons> get_weapon_handles_for_player(IClientNetworkable*) const;
-    std::set<Protocol::PlayerUpdate_Condition> get_player_conditions(IClientNetworkable*) const;
+    std::set<Protocol::PlayerUpdate::Condition> get_player_conditions(IClientNetworkable*) const;
     std::span<int> get_player_killstreaks(IClientNetworkable*) const;
     std::span<int> get_player_ammo(IClientNetworkable*) const;
 
     std::unique_ptr<Protocol::Tick> create_tick() const;
     std::unique_ptr<Protocol::TimerUpdate> create_timer_update(void* timer) const;
     std::unique_ptr<Protocol::TeamUpdate> create_team_update(void* team) const;
-    std::unique_ptr<Protocol::PlayerUpdate_Weapon> create_player_update_weapon(IClientNetworkable* weapon) const;
-    std::unique_ptr<Protocol::PlayerUpdate_Statistics> create_player_update_statistics(void* player) const;
+    std::unique_ptr<Protocol::PlayerUpdate::Weapon> create_player_update_weapon(IClientNetworkable* weapon) const;
+    std::unique_ptr<Protocol::PlayerUpdate::Statistics> create_player_update_statistics(void* player) const;
 
     std::unique_ptr<Protocol::Player> create_player_from_user_id(uint8_t user_id) const;
 
