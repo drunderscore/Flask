@@ -10,6 +10,7 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#include <sentry.h>
 #endif
 
 namespace Flask::Modules
@@ -31,6 +32,9 @@ private:
 
 #ifdef _WIN32
     static LONG WINAPI unhandled_exception_filter(EXCEPTION_POINTERS*);
+
+    static sentry_value_t on_crash(const sentry_ucontext_t*, sentry_value_t event, void* closure);
+    sentry_value_t did_crash(const sentry_ucontext_t*, sentry_value_t event);
 #endif
 
     static void termination_handler();

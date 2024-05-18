@@ -57,6 +57,20 @@ LONG ErrorReporting::unhandled_exception_filter(EXCEPTION_POINTERS* exception_in
 
     return Plugin::the().error_reporting().m_sentry_unhandled_exception_filter(exception_info);
 }
+
+sentry_value_t ErrorReporting::on_crash(const sentry_ucontext_t* uctx, sentry_value_t event, void* closure)
+{
+    return reinterpret_cast<ErrorReporting*>(closure)->did_crash(uctx, event);
+}
+
+sentry_value_t ErrorReporting::did_crash(const sentry_ucontext_t*, sentry_value_t event)
+{
+    MessageBoxA(NULL,
+                "The game has unfortunately crashed and cannot be recovered.\n\nA crash report has been generated and "
+                "will be logged.\nPress OK to continue.",
+                "Game Crash", MB_OK | MB_ICONERROR);
+    return event;
+}
 #endif
 
 ErrorReporting::ErrorReporting(Plugin& plugin) : m_plugin(plugin)
