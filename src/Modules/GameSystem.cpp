@@ -10,15 +10,15 @@ IGameSystemPerFrame::~IGameSystemPerFrame() = default;
 namespace Flask::Modules
 {
 #ifdef POSIX
-JMP::Signature GameSystem::s_game_system_add_function("55 89 E5 56 53 83 EC 10 8B 35 ? ? ? ? A1 ? ? ? ? 8B 5D 08"sv);
-JMP::Signature GameSystem::s_game_system_remove_function("55 89 E5 56 53 83 EC 10 8B 15 ? ? ? ? 8B 5D 08 85 D2"sv);
+JMP::Signature GameSystem::s_game_system_add_function(
+    "55 48 89 E5 41 55 41 54 49 89 FC 53 48 83 EC 08 8B ? ? ? ? ? 8B ? ? ? ? ? 44 8D 6B 01 41 39 C5 0F ? ? ? ? ? 48 ? ? ? ? ? ? 44 ? ? ? ? ? ? 48 C1 E3 03 48 ? ? ? ? ? ? 4D 85 E4 4C 89 24 18 74 ?"sv);
+JMP::Signature GameSystem::s_game_system_remove_function(
+    "55 48 89 E5 53 48 89 FB 48 83 EC 08 8B ? ? ? ? ? 85 D2 7E 36 48 ? ? ? ? ? ? 31 C0 48 89 Cf EB ? ? ? ? ? 83 C0 01 48 83 C7 08 39 C2 74 ?"sv);
 #else
 JMP::Signature GameSystem::s_game_system_add_function(
-    "55 8B EC 51 8B 15 ? ? ? ? 8B 0D ? ? ? ? 56 8B F2 8D 42 01 3B C1"sv);
-// This is quite literally the entire function... it seems MSVC does some funny things with inheritance of virtual
-// destructors, so there are one or two incredibly similar, nearly identical functions...
+    "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC ? 8B ? ? ? ? ? 48 8B F9 8B ? ? ? ? ? 8B DA BE 04 00 00 00 44 8D 42 01 44 3B C0 0F 8E ? ? ? ?"sv);
 JMP::Signature GameSystem::s_game_system_remove_function(
-    "55 8B EC 51 56 8B F1 8D 45 FC 50 B9 ? ? ? ? 89 75 FC C7 06 ? ? ? ? E8 ? ? ? ? 6A 00 68 ? ? ? ? 68 ? ? ? ? 6A 00 56 E8 ? ? ? ? 83 C4 14 85 C0 74 ? 8D 45 FC 89 75 FC 50 B9 ? ? ? ? E8 ? ? ? ? F6 45 08 01 74 ? 6A 0C 56 E8 ? ? ? ? 83 C4 08 8B C6 5E 8B E5 5D C2 04 00"sv);
+    "48 89 5C 24 08 57 48 83 EC 30 44 8B ? ? ? ? ? 33 DB 48 8B F9 8B D3 45 85 C0 7E ? 4C 8B ? ? ? ? ? 8B C2 49 39 3C C1 49 8D 0C C1 74 ? FF C2 41 3B D0 7C ?"sv);
 #endif
 
 GameSystem::GameSystem(Plugin& plugin) : m_plugin(plugin)

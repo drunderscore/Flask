@@ -27,11 +27,11 @@ EXPOSE_SINGLE_INTERFACE_GLOBALVAR(Plugin, IServerPluginCallbacks, INTERFACEVERSI
                                   Plugin::s_the)
 
 #ifdef POSIX
-std::string_view Plugin::s_client_library_name = "tf/bin/client.so";
-std::string_view Plugin::s_engine_library_name = "bin/engine.so";
+std::string_view Plugin::s_client_library_name = "tf/bin/linux64/client.so";
+std::string_view Plugin::s_engine_library_name = "bin/linux64/engine.so";
 #elif _WIN32
-std::string_view Plugin::s_client_library_name = "tf/bin/client.dll";
-std::string_view Plugin::s_engine_library_name = "bin/engine.dll";
+std::string_view Plugin::s_client_library_name = "tf/bin/x64/client.dll";
+std::string_view Plugin::s_engine_library_name = "bin/x64/engine.dll";
 #endif
 
 std::string_view Plugin::s_git_revision = FLASK_GIT_SHA1;

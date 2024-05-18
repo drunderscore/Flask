@@ -36,16 +36,16 @@ private:
     static bool is_local_player_spectator();
 
 #ifdef POSIX
-    static constexpr uintptr_t s_offset_of_passtime_logic_usage = 11;
-    static constexpr uintptr_t s_offset_of_passtime_pass_reticle_update_local_player_check_jump = 183;
-    static constexpr uintptr_t s_offset_of_passtime_gun_client_think_is_active_by_local_player_check_jump = 23;
+    static constexpr uintptr_t s_offset_of_passtime_logic_usage = 3;
+    static constexpr uintptr_t s_offset_of_passtime_pass_reticle_update_local_player_check_jump = 200;
+    static constexpr uintptr_t s_offset_of_passtime_gun_client_think_is_active_by_local_player_check_jump = 24;
 
-    static __attribute__((cdecl)) void passtime_gun_client_think(void* self);
-    typedef __attribute__((cdecl)) void (*C_PasstimeGunClientThink)(void* self);
+    static void passtime_gun_client_think(void* self);
+    typedef void (*C_PasstimeGunClientThink)(void* self);
 #else
-    static constexpr uintptr_t s_offset_of_passtime_logic_usage = 2;
-    static constexpr uintptr_t s_offset_of_passtime_pass_reticle_update_local_player_check_jump = 142;
-    static constexpr uintptr_t s_offset_of_passtime_gun_client_think_is_active_by_local_player_check_jump = 20;
+    static constexpr uintptr_t s_offset_of_passtime_logic_usage = 3;
+    static constexpr uintptr_t s_offset_of_passtime_pass_reticle_update_local_player_check_jump = 255;
+    static constexpr uintptr_t s_offset_of_passtime_gun_client_think_is_active_by_local_player_check_jump = 29;
 
     static void __thiscall passtime_gun_client_think(void* self);
     // MSVC yells at us if we use decltype, so we'll just define these manually.

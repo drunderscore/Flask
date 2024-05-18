@@ -8,6 +8,7 @@
 #include "Forward.h"
 #include <array>
 #include <basehandle.h>
+#include <client_class.h>
 #include <igameevents.h>
 #include <map>
 #include <memory>
@@ -163,6 +164,7 @@ private:
     void* m_player_resource{};
     bool m_previous_pause{};
     uint32_t m_last_tick_update{};
+    CreateClientClassFn m_tf_player_resource_create_fn_original{};
 
     // TODO: In the future, we should not define this list ourselves, but rather the client should tell us which convars
     //       it is interested in.

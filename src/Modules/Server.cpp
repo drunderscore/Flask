@@ -398,7 +398,18 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             std::copy(current_values.begin(), current_values.end(), values.begin());
         });
 
-    m_plugin.entity_listener().add_create_entity_callback([this](auto entity) { on_create_entity(entity); });
+    auto tf_player_resource_client_class = m_plugin.network_cache().find_client_class_by_name("CTFPlayerResource");
+    m_tf_player_resource_create_fn_original = tf_player_resource_client_class->m_pCreateFn;
+
+    tf_player_resource_client_class->m_pCreateFn = [](auto index, auto serial) {
+        auto& server = Plugin::the().server();
+
+        auto entity = server.m_tf_player_resource_create_fn_original(index, serial);
+        server.on_create_entity(entity);
+
+        return entity;
+    };
+
     m_plugin.entity_listener().add_delete_entity_callback(
         [this](auto entity, auto reason, auto on_recreating_all_entities) {
             on_delete_entity(entity, reason, on_recreating_all_entities);
@@ -520,6 +531,14 @@ Server::~Server()
 
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalPlayerExclusive", "m_iAmmo"));
+
+    if (m_tf_player_resource_create_fn_original)
+    {
+        m_plugin.network_cache().find_client_class_by_name("CTFPlayerResource")->m_pCreateFn =
+            m_tf_player_resource_create_fn_original;
+
+        m_tf_player_resource_create_fn_original = nullptr;
+    }
 
     m_plugin.interfaces().game_event_manager().RemoveListener(this);
 }
@@ -1150,11 +1169,7 @@ void Server::update(Badge<Plugin>)
     }
 }
 
-void Server::on_create_entity(IClientNetworkable* entity)
-{
-    if (entity->GetClientClass()->GetName() == "CTFPlayerResource"sv)
-        m_player_resource = entity->GetDataTableBasePtr();
-}
+void Server::on_create_entity(IClientNetworkable* entity) { m_player_resource = entity->GetDataTableBasePtr(); }
 
 void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
 {

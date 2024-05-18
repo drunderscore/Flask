@@ -9,31 +9,13 @@ set(FLASK_DEVELOPMENT OFF CACHE STRING "Building Flask during development")
 
 set(CMAKE_CXX_STANDARD 20)
 
-# Source Engine is 32-bit, so force Lagom to build 32-bit too
-if (UNIX)
-    add_compile_options(-m32)
-    add_link_options(-m32)
-elseif (WIN32)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+if (WIN32)
     add_compile_options(/MT)
 endif ()
 
 set(protobuf_BUILD_TESTS OFF)
-
-# FIXME: This probably means that Windows will not have zlib support for protobuf
-#        but I'm not sure our messages are large enough individually to warrant it
-#        at the moment.
-if (UNIX)
-    set(ZLIB_LIBRARY /usr/lib32/libz.so)
-    find_package(ZLIB REQUIRED COMPONENTS)
-    set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION_RELEASE ${ZLIB_LIBRARY})
-    set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION ${ZLIB_LIBRARY})
-endif ()
-
-if (UNIX)
-    set(CURL_LIBRARY /usr/lib32/libcurl.so)
-    find_package(CURL REQUIRED COMPONENTS AsynchDNS)
-    set_target_properties(CURL::libcurl PROPERTIES IMPORTED_LOCATION_RELEASE ${CURL_LIBRARY})
-endif ()
 
 # Use breakpad on all platforms
 # Linux uses breakpad by default, but Windows uses crashpad by default (in-process vs. out-of-process)
@@ -92,17 +74,12 @@ add_library(Flask SHARED
         src/Protocol/Flask.cpp
 )
 
-# FIXME: Rebasing/merging alliedmodders/hl2sdk into drunderscore/hl2sdk got us the VScript changes, but it also got us
-#        some changes to utlvector.h. These changes do not compile on Linux without -fpermissive.
-#        On it's own it's not that problematic, but it means that ALL of my code will also be compiled with
-#        -fpermissive, which isn't desirable at all.
-if (UNIX)
-    target_compile_options(Flask PRIVATE -fpermissive -iquote ${HL2SDK_PATH}/public/tier1)
-endif ()
-
 target_compile_definitions(Flask PRIVATE
         CLIENT_DLL
         FLASK_GIT_SHA1="${GIT_SHA1_SHORT}"
+        # FIXME: Do we need this?
+        PLATFORM_64BITS
+        COMPILER_MSVC64
 )
 
 if (FLASK_DEVELOPMENT)
@@ -126,6 +103,12 @@ target_include_directories(Flask SYSTEM PRIVATE
 
 # Technically not Linux, but no one is building this on APPLE
 if (UNIX)
+    # FIXME: Rebasing/merging alliedmodders/hl2sdk into drunderscore/hl2sdk got us the VScript changes, but it also got us
+    #        some changes to utlvector.h. These changes do not compile on Linux without -fpermissive.
+    #        On it's own it's not that problematic, but it means that ALL of my code will also be compiled with
+    #        -fpermissive, which isn't desirable at all.
+    target_compile_options(Flask PRIVATE -fpermissive -iquote ${HL2SDK_PATH}/public/tier1)
+
     target_compile_definitions(Flask PRIVATE
             stricmp=strcasecmp
             _stricmp=strcasecmp
@@ -145,23 +128,17 @@ if (UNIX)
     #        To remedy, I've placed this modified header file in the include path, which forces Boost to use a different
     #        allocation method... this is garbage.
     target_include_directories(Flask SYSTEM PRIVATE FakeBoostAsio)
+
+    target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/linux64 ${TF2_PATH}/bin/linux64)
+    target_link_libraries(Flask PRIVATE -l:tier1.a steam_api -l:mathlib.a)
+
+    set_target_properties(Flask PROPERTIES PREFIX "")
 elseif (WIN32)
     target_compile_definitions(Flask PRIVATE WIN32_LEAN_AND_MEAN)
     target_include_directories(Flask PRIVATE ${HL2SDK_PATH}/public/tier1)
-endif ()
 
-target_link_directories(Flask PRIVATE ${TF2_PATH}/bin)
-
-if (UNIX)
-    set_target_properties(Flask PROPERTIES PREFIX "")
-
-    target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/linux)
-    target_link_libraries(Flask PRIVATE -l:tier1_i486.a steam_api -l:mathlib_i486.a)
-elseif (WIN32)
-    target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/public)
-    # The steam_api.lib provided by hl2sdk is outdated, and if we provide one it'll conflict with the existing one.
-    # So we'll use an absolute path to it on Windows.
-    target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions ${CMAKE_SOURCE_DIR}/Libraries/Windows/steam_api.lib mathlib)
+    target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/public/win64 ${CMAKE_SOURCE_DIR}/Libraries/Windows/x64/)
+    target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions steam_api64 mathlib)
 endif ()
 
 target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol sentry::sentry subhook::subhook)

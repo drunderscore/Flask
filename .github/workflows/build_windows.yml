@@ -2,7 +2,7 @@ name: Build for Windows
 
 on:
   push:
-    branches: [ "master", "development-windows-build" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -26,7 +26,7 @@ jobs:
     - name: Install MSVC Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1
       with:
-        arch: x86
+        arch: x64
 
     - name: Install Boost
       id: install-boost

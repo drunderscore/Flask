@@ -14,7 +14,7 @@ using namespace std::string_view_literals;
 extern "C"
 {
     extern ISteamFriends* SteamAPI_SteamFriends_v017();
-    extern ISteamUser* SteamAPI_SteamUser_v021();
+    extern ISteamUser* SteamAPI_SteamUser_v023();
 }
 
 namespace Flask::Modules
@@ -83,7 +83,7 @@ ErrorReporting::ErrorReporting(Plugin& plugin) : m_plugin(plugin)
 
             auto user = sentry_value_new_object();
 
-            if (auto steam_user = SteamAPI_SteamUser_v021())
+            if (auto steam_user = SteamAPI_SteamUser_v023())
                 sentry_value_set_by_key(
                     user, "id",
                     sentry_value_new_string(std::to_string(steam_user->GetSteamID().ConvertToUint64()).c_str()));

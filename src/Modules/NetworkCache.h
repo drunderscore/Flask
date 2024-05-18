@@ -54,7 +54,7 @@ private:
     std::map<TableNameAndPropertyName, RecvProp*> m_cached_receive_properties_by_table_and_property_name;
 
 #ifdef POSIX
-    typedef __attribute__((cdecl)) ClientClass* (*IBaseClientDLL017GetClientClassesFn)(const IBaseClientDLL*);
+    typedef ClientClass* (*IBaseClientDLL017GetClientClassesFn)(const IBaseClientDLL*);
 #else
     typedef ClientClass*(__thiscall* IBaseClientDLL017GetClientClassesFn)(IBaseClientDLL*);
 #endif

@@ -10,45 +10,39 @@ using namespace std::string_view_literals;
 namespace Flask::Modules
 {
 #ifdef POSIX
-// Call is from CViewRender::SetUpViews
+// Call is from spec_next concommand
 JMP::Signature Camera::s_call_to_hltv_camera_singleton_getter(
-    "E8 ? ? ? ? 8B 8D 54 FF FF FF 89 74 24 0C 8B 95 50 FF FF FF 89 04 24 89 4C 24 08 89 54 24 04 E8 ? ? ? ? C6 85 43 FF FF FF 00"sv);
+    "E8 ? ? ? ? 48 85 C0 74 ? 48 89 C7 48 8B 00 FF 90 ? ? ? ? 85 C0 74 ? 48 ? ? ? ? ? ? 48 8B 38 48 8B 07 FF 90 ? ? ? ? 84 C0 74 ?"sv);
 JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
-    "55 89 E5 57 56 53 83 EC 3C 8B 5D 08 8B 45 0C 8B 7B 28 39 C7 0F 84 ? ? ? ? 89 43 28"sv);
+    "55 48 89 E5 41 56 41 55 41 54 53 48 83 EC 20 44 8B 6F 2C 41 39 F5 0F ? ? ? ? ? 48 89 FB 89 77 2C 8B 7F 10 85 FF 0F ? ? ? ? ?"sv);
 JMP::Signature Camera::s_hltv_camera_set_mode_function(
-    "55 89 E5 57 56 53 83 EC 1C 8B 75 08 8B 45 0C 8B 7E 08 39 C7 0F 84 ? ? ? ? 89 46 08"sv);
+    "55 48 89 E5 41 56 41 55 41 54 53 44 8B 6F 0C 41 39 F5 74 ? 4C ? ? ? ? ? ? 89 77 0C 48 89 FB 31 D2 48 ? ? ? ? ? ? 49 8B 3E 48 8B 07 FF 50 38 48 85 C0 49 89 C4 74 ?"sv);
 JMP::Signature Camera::s_hltv_camera_calc_view(
-    "55 89 E5 57 56 53 83 EC 3C 8B 5D 08 8B 7D 10 80 7B 50 00 0F 85 ? ? ? ? 8B 43 0C 85 C0 7E 60"sv);
+    "55 48 89 E5 41 57 49 89 CF 41 56 49 89 D6 41 55 49 89 F5 41 54 49 89 FC 53 48 83 EC 18 80 7F 54 00"sv);
 #else
-// Call is from CViewRender::SetUpViews
 JMP::Signature Camera::s_call_to_hltv_camera_singleton_getter(
-    "E8 ? ? ? ? 8B C8 E8 ? ? ? ? E9 ? ? ? ? 8B 0D ? ? ? ? 8B 01 8B 40 20"sv);
+    "E8 ? ? ? ? 48 85 C0 74 ? 48 8B 10 48 8B C8 FF 92 A8 07 00 00 85 C0 74 ? 48 8B 0D ? ? ? ? 48 8B 01 FF 90 B0 02 00 00 84 C0 74 ?"sv);
 JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
-    "55 8B EC 8B 45 08 83 EC 18 53 56 8B F1 8B 5E 28 3B D8 0F 84 ? ? ? ? 89 46 28"sv);
+    "48 89 5C 24 20 55 48 83 EC 40 8B 69 30 48 8B D9 3B EA 0F 84 ? ? ? ? 89 51 30 8B 49 14 48 89 74 24 50 48 89 7C 24 60 85 C9 7E ? E8 ? ? ? ? 48 85 C0 74 ?"sv);
 JMP::Signature Camera::s_hltv_camera_set_mode_function(
-    "55 8B EC 8B 45 08 53 56 8B F1 8B 5E 08 3B D8 74 54 89 46 08 8B 0D ? ? ? ? 57 6A 00"sv);
+    "48 89 74 24 10 57 48 83 EC 20 8B 71 10 48 8B F9 3B F2 74 ? 89 51 10 45 33 C0 48 ? ? ? ? ? ? 48 ? ? ? ? ? ? 48 ? ? ? ? 48 8B 01 FF 50 ? 48 8B D8 48 85 C0 74 ?"sv);
 JMP::Signature Camera::s_hltv_camera_calc_view(
-    "55 8B EC 51 53 56 8B F1 80 7E 50 00 74 ? E8 ? ? ? ? C6 46 50 00 8B 46 0C 85 C0 7E ? 50 E8 ? ? ? ? 8B D8"sv);
+    "48 89 5C 24 10 48 89 74 24 18 57 41 56 41 57 48 83 EC 50 80 79 58 00 4D 8B F9 49 8B F0 4C 8B F2"sv);
 #endif
 
 Camera::Camera(const Plugin& plugin)
 {
-    // Because this singleton getter only returns the address of some static, it's impossible to write a signature for
-    // the function. Instead, we've written a signature for a CALL to it. Once we have that address, we take the operand
-    // and add the base address + 5 (because calls are relative)
-
     auto address_of_call_to_hltv_camera_singleton_getter =
-        s_call_to_hltv_camera_singleton_getter.find_in(plugin.client_library_bytes());
+        reinterpret_cast<uintptr_t>(s_call_to_hltv_camera_singleton_getter.find_in(plugin.client_library_bytes()));
 
     if (!address_of_call_to_hltv_camera_singleton_getter)
         throw std::runtime_error("Failed to find call to C_HLTVCamera singleton getter");
 
-    auto address_of_call_to_hltv_camera_singleton_getter_integer =
-        reinterpret_cast<uintptr_t>(address_of_call_to_hltv_camera_singleton_getter);
+    address_of_call_to_hltv_camera_singleton_getter += s_offset_of_hltv_camera_singleton_getter_usage;
 
     m_hltv_camera_singleton_getter = reinterpret_cast<C_HLTVCameraSingletonGetterFn>(
-        *reinterpret_cast<uintptr_t*>(address_of_call_to_hltv_camera_singleton_getter_integer + 1) +
-        address_of_call_to_hltv_camera_singleton_getter_integer + 5);
+        address_of_call_to_hltv_camera_singleton_getter +
+        *reinterpret_cast<int32_t*>(address_of_call_to_hltv_camera_singleton_getter + 1) + 5);
 
     if (!(m_hltv_camera_set_primary_target_function = reinterpret_cast<C_HLTVCameraSetPrimaryTargetFn>(
               s_hltv_camera_set_primary_target_function.find_in(plugin.client_library_bytes()))))
@@ -65,7 +59,8 @@ Camera::Camera(const Plugin& plugin)
         throw std::runtime_error("Failed to find C_HLTVCamera::CalcView");
 
     if (!m_hltv_camera_calc_view_subhook.Install(reinterpret_cast<void*>(m_hltv_camera_calc_view),
-                                                 reinterpret_cast<void*>(calc_view), subhook::HookFlags::HookNoFlags))
+                                                 reinterpret_cast<void*>(calc_view),
+                                                 subhook::HookFlags::HookFlag64BitOffset))
         throw std::runtime_error("Failed to hook C_HLTVCamera::CalcView");
 }
 

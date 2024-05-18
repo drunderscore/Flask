@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <dt_recv.h>
 #include <string_view>
 

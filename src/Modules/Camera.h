@@ -40,8 +40,10 @@ private:
     static JMP::Signature s_hltv_camera_calc_view;
 
 #ifdef POSIX
-    static __attribute__((cdecl)) void calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle&, float& fov);
+    static void calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle&, float& fov);
+    static constexpr uintptr_t s_offset_of_hltv_camera_singleton_getter_usage = 49;
 #else
+    static constexpr uintptr_t s_offset_of_hltv_camera_singleton_getter_usage = 46;
     static void __thiscall calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle&, float& fov);
 #endif
 
@@ -49,8 +51,8 @@ private:
     using C_HLTVCameraCalcViewFn = decltype(calc_view)*;
 
 #ifdef POSIX
-    typedef __attribute__((cdecl)) void (*C_HLTVCameraSetPrimaryTargetFn)(Structures::C_HLTVCamera*, int);
-    typedef __attribute__((cdecl)) void (*C_HLTVCameraSetModeFn)(Structures::C_HLTVCamera*, int);
+    typedef void (*C_HLTVCameraSetPrimaryTargetFn)(Structures::C_HLTVCamera*, int);
+    typedef void (*C_HLTVCameraSetModeFn)(Structures::C_HLTVCamera*, int);
 #else
     typedef void(__thiscall* C_HLTVCameraSetPrimaryTargetFn)(Structures::C_HLTVCamera*, int);
     typedef void(__thiscall* C_HLTVCameraSetModeFn)(Structures::C_HLTVCamera*, int);
@@ -58,6 +60,7 @@ private:
 
     C_HLTVCameraSingletonGetterFn m_hltv_camera_singleton_getter{};
     C_HLTVCameraSetPrimaryTargetFn m_hltv_camera_set_primary_target_function{};
+
     C_HLTVCameraSetModeFn m_hltv_camera_set_mode_function{};
     C_HLTVCameraCalcViewFn m_hltv_camera_calc_view{};
     subhook::Hook m_hltv_camera_calc_view_subhook{};

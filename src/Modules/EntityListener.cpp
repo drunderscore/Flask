@@ -1,6 +1,8 @@
 #include "EntityListener.h"
 #include "../Flask.h"
 #include "Interfaces.h"
+
+#include <client_class.h>
 #include <icliententitylist.h>
 
 using namespace std::string_view_literals;
@@ -8,53 +10,22 @@ using namespace std::string_view_literals;
 namespace Flask::Modules
 {
 #ifdef POSIX
-JMP::Signature EntityListener::s_create_dll_entity_function(
-    "55 89 E5 57 56 53 83 EC 1C 8B 45 0C 8B 7D 08 8B 75 10 C1 E0 04 03 05 ? ? ? ? 8B 18 85 DB"sv);
 JMP::Signature EntityListener::s_delete_dll_entity_function(
-    "55 89 E5 57 56 53 83 EC 1C A1 ? ? ? ? 8B 75 08 8B 7D 10 8B 10 89 04 24 89 74 24 04"sv);
+    "55 48 89 E5 41 55 41 89 FD 41 54 44 89 EE 53 89 D3 48 83 EC 08 48 ? ? ? ? ? ? 48 ? ? 48 ? ? FF 10 48 85 C0 74 ? 49 89 C4 48 8B 00 4C 89 E7"sv);
 #else
-JMP::Signature EntityListener::s_create_dll_entity_function(
-    "55 8B EC 8B 4D 0C A1 ? ? ? ? 03 C9 56 8B 34 C8 85 F6 74 ? FF 75 08 E8 ? ? ? ? 83 C4 04"sv);
 JMP::Signature EntityListener::s_delete_dll_entity_function(
-    "55 8B EC 8B 0D ? ? ? ? 56 FF 75 08 8B 01 FF 10 8B F0 85 F6 74 ? 8B 16 8B CE FF 52 08 50"sv);
+    "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 8B F9 41 0F B6 F0 48 ? ? ? ? ? ? 8B D7 48 8B 01 FF 10 48 8B D8 48 85 C0 74 ?"sv);
 #endif
 
 EntityListener::EntityListener(Plugin& plugin)
 {
-    auto create_dll_entity_function = s_create_dll_entity_function.find_in(plugin.engine_library_bytes());
-    if (!create_dll_entity_function)
-        throw std::runtime_error("Failed to find CL_CreateDLLEntity");
-
     auto delete_dll_entity_function = s_delete_dll_entity_function.find_in(plugin.engine_library_bytes());
     if (!delete_dll_entity_function)
         throw std::runtime_error("Failed to find CL_DeleteDLLEntity");
 
-    if (!m_create_dll_entity_subhook.Install(create_dll_entity_function, reinterpret_cast<void*>(on_create_dll_entity),
-                                             subhook::HookFlags::HookNoFlags))
-        throw std::runtime_error("Failed to hook CL_CreateDLLEntity");
-
     if (!m_delete_dll_entity_subhook.Install(delete_dll_entity_function, reinterpret_cast<void*>(on_delete_dll_entity),
-                                             subhook::HookFlags::HookNoFlags))
+                                             subhook::HookFlags::HookFlag64BitOffset))
         throw std::runtime_error("Failed to hook CL_DeleteDLLEntity");
-}
-
-IClientNetworkable* EntityListener::on_create_dll_entity(int entity_index, int client_class, int serial_number)
-{
-    // This hook is much more useful if we call it after invoking the original.
-
-    auto& subhook = Plugin::the().entity_listener().m_create_dll_entity_subhook;
-    IClientNetworkable* entity;
-
-    {
-        subhook::ScopedHookRemove create_dll_entity_subhook_scoped_remove(&subhook);
-        entity = reinterpret_cast<decltype(on_create_dll_entity)*>(subhook.GetSrc())(entity_index, client_class,
-                                                                                     serial_number);
-    }
-
-    for (auto& callback : Plugin::the().entity_listener().m_create_dll_entity_callbacks)
-        callback(entity);
-
-    return entity;
 }
 
 void EntityListener::on_delete_dll_entity(int entity_index, const char* reason, bool on_recreating_all_entities)

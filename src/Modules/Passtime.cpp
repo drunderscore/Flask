@@ -13,7 +13,6 @@
 #include <icliententity.h>
 #include <icliententitylist.h>
 #include <ivdebugoverlay.h>
-#include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string_view>
 #include <toolframework/ienginetool.h>
@@ -24,42 +23,40 @@ namespace Flask::Modules
 {
 #ifdef POSIX
 JMP::Signature Passtime::s_passtime_logic_usage(
-    "55 89 E5 57 56 53 83 EC 3C 8B 0D ? ? ? ? 8B 5D 0C 85 C9 74 53 8B 91 ? ? ? ? 8B 35 ? ? ? ? 85 D2 74 22"sv);
+    "48 8D 05 ? ? ? ? 48 8B 10 31 C0 48 85 D2 74 ? 8B 82 48 0C 00 00 31 D2 4C 89 E7"sv);
 JMP::Signature Passtime::s_is_local_player_spectator(
-    "55 89 E5 83 EC 18 E8 ? ? ? ? 89 C2 31 C0 85 D2 74 ? 8B 02 89 14 24 FF 90 ? ? ? ? 85 C0 0F 95 C0 C9 C3"sv);
+    "55 48 89 E5 E8 ? ? ? ? 48 85 C0 74 ? 48 89 C7 48 8B 00 FF 90 A8 09 00 00 5D 85 C0 0F 95 C0 C3"sv);
 JMP::Signature Passtime::s_passtime_pass_reticle_update(
-    "55 89 E5 57 56 53 83 EC 4C A1 ? ? ? ? 8B 75 08 85 C0 74 ? 8B 80 ? ? ? ? 8B 0D ? ? ? ? 85 C0 74 ? 83 F8 ? 0F B7 D0"sv);
+    "55 48 89 E5 41 56 41 55 41 54 53 48 83 EC 10 4C 8D 25 ? ? ? ? 49 8B 04 24 48 85 C0 0F 84 ? ? ? ?"sv);
 JMP::Signature Passtime::s_passtime_gun_client_think(
-    "55 89 E5 53 83 EC 14 8B 5D 08 8B 03 89 1C 24 FF 90 ? ? ? ? 84 C0 74 ? E8 ? ? ? ? 84 C0 75 ? 8B 83 58 0C 00 00 83 E8 01 83 F8 01 76 ?"sv);
-
-std::vector<uint8_t> Passtime::s_passtime_gun_client_think_is_active_by_local_player_check_patch_bytes{0x90, 0x90};
-std::vector<uint8_t> Passtime::s_passtime_pass_reticle_update_local_player_check_patch_bytes{0x90, 0x90};
+    "55 48 89 E5 41 54 49 89 FC 48 83 EC 08 48 8B 07 FF 90 ? ? ? ? 84 C0 75 ? E8 ? ? ? ? 84 C0 74 ? E8 ? ? ? ? 84 C0 75 ? 41 8B 84 24 D0 10 00 00 83 E8 01 83 F8 01"sv);
 #else
 JMP::Signature Passtime::s_passtime_logic_usage(
-    "83 3D ? ? ? ? 00 56 8B F1 74 ? 53 57 6A 03 33 FF 33 DB E8 ? ? ? ? 83 C4 04 85 C0 74 ? 8B B8 ? ? ? ? 6A 02"sv);
+    "48 8B 05 ? ? ? ? 48 85 C0 74 ? 8B 88 ? ? ? ? EB ? 8B CD 89 8E ? ? ? ? 48 8D 15 ? ? ? ? 48 8B CE 45 33 C0 E8 ? ? ? ? 45 33 C0"sv);
 JMP::Signature Passtime::s_is_local_player_spectator(
-    "E8 ? ? ? ? 85 C0 74 ? 8B 10 8B C8 FF 92 ? ? ? ? F7 D8 1B C0 F7 D8 C3 32 C0 C3"sv);
+    "48 83 EC 28 E8 ? ? ? ? 48 85 C0 74 ? 48 8B 10 48 8B C8 FF 92 ? ? ? ? 85 C0 0F 95 C0 48 83 C4 28 C3 48 83 C4 28 C3"sv);
 JMP::Signature Passtime::s_passtime_gun_client_think(
-    "56 8B F1 57 8B 46 F4 8D 4E F4 8B 80 ? ? ? ? FF D0 84 C0 75 ? E8 ? ? ? ? 84 C0 75 ? 8B 8E ? ? ? ? 85 C9 74 ?"sv);
+    "48 89 5C 24 08 57 48 83 EC 20 48 8B 41 E8 48 8B D9 48 83 C1 E8 FF 90 ? ? ? ?"sv);
 JMP::Signature Passtime::s_passtime_pass_reticle_update(
-    "55 8B EC 83 EC 48 8B 15 ? ? ? ? 57 8B F9 89 7D FC 85 D2 0F 84 ? ? ? ?"sv);
+    "48 8B C4 48 89 58 08 48 89 68 10 48 89 70 18 48 89 78 20 41 54 41 56 41 57 48 81 EC ? ? ? ? 48 8B 15 ? ? ? ? 48 8B F9 0F 29 70 D8"sv);
+#endif
 
-// The branch is inverted from what Linux does, so instead we always jump.
 std::vector<uint8_t> Passtime::s_passtime_gun_client_think_is_active_by_local_player_check_patch_bytes{0xEB};
-// The branch is long, unlike Linux, so patch the extended byte + opcode + 4 operands.
 std::vector<uint8_t> Passtime::s_passtime_pass_reticle_update_local_player_check_patch_bytes{0x90, 0x90, 0x90,
                                                                                              0x90, 0x90, 0x90};
-#endif
 
 Passtime::Passtime(Plugin& plugin) : m_plugin(plugin)
 {
     // Need to scan for a global, so look for a usage of it instead and calculate the address.
-    auto passtime_logic_usage = s_passtime_logic_usage.find_in(plugin.client_library_bytes());
+    auto passtime_logic_usage =
+        reinterpret_cast<uintptr_t>(s_passtime_logic_usage.find_in(plugin.client_library_bytes()));
+
     if (!passtime_logic_usage)
         throw std::runtime_error("Failed to find usage of g_pPasstimeLogic");
 
-    m_passtime_logic_global = *reinterpret_cast<IClientEntity***>(reinterpret_cast<uintptr_t>(passtime_logic_usage) +
-                                                                  s_offset_of_passtime_logic_usage);
+    m_passtime_logic_global = reinterpret_cast<IClientEntity**>(
+        passtime_logic_usage + *reinterpret_cast<int32_t*>(passtime_logic_usage + s_offset_of_passtime_logic_usage) +
+        7);
 
     // This isn't really passtime-specific, but it is ONLY used in passtime code, so Bad Robot probably made it.
     auto is_local_player_spectator_original = s_is_local_player_spectator.find_in(plugin.client_library_bytes());
@@ -76,7 +73,7 @@ Passtime::Passtime(Plugin& plugin) : m_plugin(plugin)
 
     if (!m_is_local_player_spectator_subhook.Install(is_local_player_spectator_original,
                                                      reinterpret_cast<void*>(is_local_player_spectator),
-                                                     subhook::HookFlags::HookNoFlags))
+                                                     subhook::HookFlags::HookFlag64BitOffset))
         throw std::runtime_error("Failed to hook IsLocalPlayerSpectator");
 
     // This checks if the ball carrier is the local player, so we need to patch that out.
@@ -102,7 +99,7 @@ Passtime::Passtime(Plugin& plugin) : m_plugin(plugin)
     //       flask_passtime_show_bounce_reticle
     if (!m_passtime_gun_client_think_subhook.Install(passtime_gun_client_think_original,
                                                      reinterpret_cast<void*>(passtime_gun_client_think),
-                                                     subhook::HookFlags::HookNoFlags))
+                                                     subhook::HookFlags::HookFlag64BitOffset))
         throw std::runtime_error("Failed to hook C_PasstimeGun::ClientThink");
 
     m_plugin.interfaces().game_event_manager().AddListener(this, "teamplay_broadcast_audio", false);
@@ -124,7 +121,7 @@ void Passtime::passtime_gun_client_think(void* gun_self)
 #ifdef POSIX
     self = reinterpret_cast<IClientEntity*>(gun_self);
 #else
-    self = reinterpret_cast<IClientEntity*>(reinterpret_cast<uintptr_t>(gun_self) - 12);
+    self = reinterpret_cast<IClientEntity*>(reinterpret_cast<uintptr_t>(gun_self) - (sizeof(void*) * 3));
 #endif
 
     auto& passtime_gun_client_think_subhook = Plugin::the().passtime().m_passtime_gun_client_think_subhook;

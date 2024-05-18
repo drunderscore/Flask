@@ -3,6 +3,7 @@
 #include "../Forward.h"
 #include "../ManagedConCommand.h"
 #include <basehandle.h>
+#include <client_class.h>
 
 class C_BaseEntity;
 class IClientNetworkable;
@@ -17,7 +18,7 @@ public:
 
 private:
 #ifdef POSIX
-    static __attribute__((cdecl)) int respawn_room_visualizer_draw_model(C_BaseEntity*, int);
+    static int respawn_room_visualizer_draw_model(C_BaseEntity*, int);
 #else
     static int __thiscall respawn_room_visualizer_draw_model(C_BaseEntity*, int);
 #endif
@@ -25,6 +26,8 @@ private:
     void on_create_entity(IClientNetworkable*);
 
     Plugin& m_plugin;
+
+    CreateClientClassFn m_func_respawn_room_visualizer_create_fn_original{};
 
     using C_FuncRespawnRoomVisualizerDrawModelFn = decltype(respawn_room_visualizer_draw_model)*;
     C_FuncRespawnRoomVisualizerDrawModelFn* m_respawn_room_visualizer_draw_model_function_vtable_entry{};
