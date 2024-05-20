@@ -120,15 +120,6 @@ if (UNIX)
             USE_SDL
     )
 
-    # FIXME: So, Source uses tcmalloc by Google to allocate memory. This means calls to malloc() and free() go through
-    #        tcmalloc. However, tcmalloc (in this implementation) does _not_ implement or override aligned_alloc(), so
-    #        calls to it go through whereever they normally would. This would be sorta okay... if it weren't for the
-    #        implicit contract that memory allocated from alligned_alloc() can be freed by free()... tcmalloc can't free
-    #        memory it didn't itself allocate!
-    #        To remedy, I've placed this modified header file in the include path, which forces Boost to use a different
-    #        allocation method... this is garbage.
-    target_include_directories(Flask SYSTEM PRIVATE FakeBoostAsio)
-
     target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/linux64 ${TF2_PATH}/bin/linux64)
     target_link_libraries(Flask PRIVATE -l:tier1.a steam_api -l:mathlib.a)
 
