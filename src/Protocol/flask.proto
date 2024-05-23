@@ -75,10 +75,19 @@ message PlayerHurt {
 }
 
 message TimerUpdate {
+  enum RoundTimerState {
+    SETUP = 0;
+    NORMAL = 1;
+  }
+
   optional uint32 team = 1;
   float end_time = 2;
   bool is_paused = 3;
   float time_remaining = 4;
+  RoundTimerState round_timer_state = 5;
+  bool is_stopwatch = 6;
+  bool is_in_capture_watch_state = 8;
+  float total_time = 9;
 }
 
 message GameRulesUpdate {

@@ -99,6 +99,22 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimeRemaining"),
         on_timer_updated);
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_nState"),
+        on_timer_updated);
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_bStopWatchTimer"),
+        on_timer_updated);
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TeamRoundTimer", "m_bInCaptureWatchState"),
+                                            on_timer_updated);
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTotalTime"),
+        on_timer_updated);
+
     auto on_team_updated = [this](auto data, auto, auto) { m_pending_team_updates.insert(data->m_ObjectID); };
 
     data_table_change_listener.add_listener(
@@ -464,6 +480,18 @@ Server::~Server()
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTimeRemaining"));
 
     data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_nState"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_bStopWatchTimer"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TeamRoundTimer", "m_bInCaptureWatchState"));
+
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_flTotalTime"));
+
+    data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iTeamNum"));
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_Team", "m_iScore"));
@@ -700,6 +728,21 @@ std::unique_ptr<Protocol::TimerUpdate> Server::create_timer_update(void* timer) 
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
                                                                                        "m_flTimeRemaining");
 
+    auto team_round_timer_state_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer", "m_nState");
+
+    auto team_round_timer_stopwatch_timer_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
+                                                                                       "m_bStopWatchTimer");
+
+    auto team_round_timer_in_capture_watch_state_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
+                                                                                       "m_bInCaptureWatchState");
+
+    auto team_round_timer_total_time_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamRoundTimer",
+                                                                                       "m_flTotalTime");
+
     auto timer_update = std::make_unique<Protocol::TimerUpdate>();
 
     timer_update->set_end_time(
@@ -708,6 +751,14 @@ std::unique_ptr<Protocol::TimerUpdate> Server::create_timer_update(void* timer) 
         *DataTableHelper::get_property_value_from_object<bool>(timer, *team_round_timer_paused_property));
     timer_update->set_time_remaining(
         *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_time_remaining_property));
+    timer_update->set_round_timer_state(static_cast<Protocol::TimerUpdate::RoundTimerState>(
+        *DataTableHelper::get_property_value_from_object<int>(timer, *team_round_timer_state_property)));
+    timer_update->set_is_stopwatch(
+        *DataTableHelper::get_property_value_from_object<bool>(timer, *team_round_timer_stopwatch_timer_property));
+    timer_update->set_is_in_capture_watch_state(*DataTableHelper::get_property_value_from_object<bool>(
+        timer, *team_round_timer_in_capture_watch_state_property));
+    timer_update->set_total_time(
+        *DataTableHelper::get_property_value_from_object<float>(timer, *team_round_timer_total_time_property));
 
     return timer_update;
 }
