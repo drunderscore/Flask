@@ -186,10 +186,22 @@ void Passtime::calc_view(Badge<Camera>, Vector& origin, QAngle& angles, float&)
         const Vector VEC_VIEW(0, 0, 64);
         target_origin =
             m_plugin.interfaces().client_entity_list().GetClientEntityFromHandle(carrier)->GetRenderOrigin() + VEC_VIEW;
+
+        // If the carrier has changed, set the observe target to them with side effects.
+        // This isn't necessary, but allows others parts of code to know who we're actually spectating (ex, server
+        // module).
+        if (camera->target_1 != carrier.GetEntryIndex())
+            m_plugin.camera().set_observe_target(carrier.GetEntryIndex());
     }
     else
     {
         target_origin = passtime_ball->GetRenderOrigin();
+
+        // If the observe target is set, unset it with side effects.
+        // This isn't necessary, but allows others parts of code to know who we're actually spectating (ex, server
+        // module).
+        if (camera->target_1 != 0)
+            m_plugin.camera().set_observe_target(0);
     }
 
     QAngle camera_angles;
