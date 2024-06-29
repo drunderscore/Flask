@@ -1619,7 +1619,7 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
 
                     event.set_allocated_player_update(player_update);
 
-                    send(event);
+                    client.send(event);
 
                     return EntityEnumerator::IterationDecision::Continue;
                 },
