@@ -100,6 +100,8 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
     MathLib_Init(2.2f, 2.2f, 0.0f, 2.0f);
     ConVar_Register();
 
+    interfaces().engine_client().ExecuteClientCmd("exec flask.cfg");
+
     spdlog::info("Flask loaded");
 
     return true;
