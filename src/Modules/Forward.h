@@ -10,6 +10,7 @@ class EntityListener;
 class ErrorReporting;
 class GameSystem;
 class HideRespawnRoomVisualizers;
+class HUD;
 class Interfaces;
 class NetworkCache;
 class Passtime;

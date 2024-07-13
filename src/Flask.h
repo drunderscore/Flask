@@ -77,6 +77,7 @@ public:
     Modules::AdditionalPointsOfInterest& additional_points_of_interest() { return *m_additional_points_of_interest; }
     Modules::EntityEnumerator& entity_enumerator() { return *m_entity_enumerator; }
     Modules::Passtime& passtime() { return *m_passtime; }
+    Modules::HUD& hud() { return *m_hud; }
 
 private:
     void nag_about_missing_support(std::string_view reason);
@@ -97,6 +98,7 @@ private:
     std::unique_ptr<Modules::AdditionalPointsOfInterest> m_additional_points_of_interest;
     std::unique_ptr<Modules::EntityEnumerator> m_entity_enumerator;
     std::unique_ptr<Modules::Passtime> m_passtime;
+    std::unique_ptr<Modules::HUD> m_hud;
 
     std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
 };

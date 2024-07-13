@@ -66,6 +66,7 @@ add_library(Flask SHARED
         src/Modules/ErrorReporting.cpp
         src/Modules/GameSystem.cpp
         src/Modules/HideRespawnRoomVisualizers.cpp
+        src/Modules/HUD.cpp
         src/Modules/Interfaces.cpp
         src/Modules/NetworkCache.cpp
         src/Modules/Passtime.cpp
