@@ -70,15 +70,34 @@ private:
 
     Plugin& m_plugin;
 
-    ManagedConVar m_flask_passtime_ball_camera_distance{"flask_passtime_ball_camera_distance", "96.0", FCVAR_NONE,
-                                                        "The distance the camera will be from the ball"};
-    ManagedConVar m_flask_passtime_ball_camera_debug{"flask_passtime_ball_camera_debug", "0", FCVAR_NONE};
-    ManagedConVar m_flask_passtime_show_bounce_reticle{"flask_passtime_show_bounce_reticle", "1", FCVAR_NONE,
-                                                       "Show the bounce reticle when preparing to throw the ball.",
-                                                       on_flask_passtime_show_bounce_reticle_change};
-    ManagedConVar m_flask_passtime_show_pass_reticle{"flask_passtime_show_pass_reticle", "1", FCVAR_NONE,
-                                                     "Show the pass reticle when locking onto a throw target.",
-                                                     on_flask_passtime_show_pass_reticle_change};
+    ManagedConVar m_flask_passtime_ball_camera_distance{
+        "flask_passtime_ball_camera_distance",
+        "96.0",
+        FCVAR_NONE,
+        "The distance the camera will be from the ball",
+    };
+
+    ManagedConVar m_flask_passtime_ball_camera_debug{
+        "flask_passtime_ball_camera_debug",
+        "0",
+        FCVAR_NONE,
+    };
+
+    ManagedConVar m_flask_passtime_show_bounce_reticle{
+        "flask_passtime_show_bounce_reticle",
+        "1",
+        FCVAR_NONE,
+        "Show the bounce reticle when preparing to throw the ball.",
+        on_flask_passtime_show_bounce_reticle_change,
+    };
+
+    ManagedConVar m_flask_passtime_show_pass_reticle{
+        "flask_passtime_show_pass_reticle",
+        "1",
+        FCVAR_NONE,
+        "Show the pass reticle when locking onto a throw target.",
+        on_flask_passtime_show_pass_reticle_change,
+    };
 
     IClientEntity** m_passtime_logic_global{};
     float m_time_until_next_visualization{};

@@ -33,6 +33,10 @@ private:
     C_FuncRespawnRoomVisualizerDrawModelFn* m_respawn_room_visualizer_draw_model_function_vtable_entry{};
     C_FuncRespawnRoomVisualizerDrawModelFn m_respawn_room_visualizer_draw_model_function{};
     ManagedConVar m_flask_render_hide_respawn_room_visualizers{
-        "flask_render_hide_respawn_room_visualizers", "1", FCVAR_NONE, "Should the respawn room visualizers be hidden"};
+        "flask_render_hide_respawn_room_visualizers",
+        "1",
+        FCVAR_NONE,
+        "Should the respawn room visualizers be hidden",
+    };
 };
 }

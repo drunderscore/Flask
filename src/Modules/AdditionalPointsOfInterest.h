@@ -38,19 +38,37 @@ private:
     Plugin& m_plugin;
 
     ManagedConVar m_flask_additional_poi_sticky_trap_maximum_distance{
-        "flask_additional_poi_sticky_trap_maximum_distance", "150.0", FCVAR_NONE,
-        "The maximum distance two stickies can be between each other to consider it a trap"};
+        "flask_additional_poi_sticky_trap_maximum_distance",
+        "150.0",
+        FCVAR_NONE,
+        "The maximum distance two stickies can be between each other to consider it a trap",
+    };
+
     ManagedConVar m_flask_additional_poi_sticky_trap_minimum_stickies{
-        "flask_additional_poi_sticky_trap_minimum_stickies", "3", FCVAR_NONE,
-        "The minimum number of stickies to consider it a trap"};
+        "flask_additional_poi_sticky_trap_minimum_stickies",
+        "3",
+        FCVAR_NONE,
+        "The minimum number of stickies to consider it a trap",
+    };
 
-    ManagedConCommand m_flask_additional_poi_spectate_sticky_trap{"flask_additional_poi_spectate_sticky_trap",
-                                                                  flask_additional_poi_spectate_sticky_trap};
-    ManagedConCommand m_flask_additional_poi_spectate_sentry{"flask_additional_poi_spectate_sentry",
-                                                             flask_additional_poi_spectate_sentry};
-    ManagedConCommand m_flask_additional_poi_spectate_passtime_ball{"flask_additional_poi_spectate_passtime_ball",
-                                                                    flask_additional_poi_spectate_passtime_ball};
+    ManagedConCommand m_flask_additional_poi_spectate_sticky_trap{
+        "flask_additional_poi_spectate_sticky_trap",
+        flask_additional_poi_spectate_sticky_trap,
+    };
 
-    ManagedConCommand m_flask_additional_poi_display{"flask_additional_poi_display", flask_additional_poi_display};
+    ManagedConCommand m_flask_additional_poi_spectate_sentry{
+        "flask_additional_poi_spectate_sentry",
+        flask_additional_poi_spectate_sentry,
+    };
+
+    ManagedConCommand m_flask_additional_poi_spectate_passtime_ball{
+        "flask_additional_poi_spectate_passtime_ball",
+        flask_additional_poi_spectate_passtime_ball,
+    };
+
+    ManagedConCommand m_flask_additional_poi_display{
+        "flask_additional_poi_display",
+        flask_additional_poi_display,
+    };
 };
 }

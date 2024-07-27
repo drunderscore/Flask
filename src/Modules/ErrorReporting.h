@@ -50,12 +50,19 @@ private:
         throw std::runtime_error("Intentional user-initiated exception thrown");
     }
 
-    ManagedConCommand m_flask_debug_crash_dereference_null{"flask_debug_crash_dereference_null",
-                                                           flask_debug_crash_dereference_null,
-                                                           "Intentionally dereference null", FCVAR_HIDDEN};
-    ManagedConCommand m_flask_debug_crash_throw_exception{"flask_debug_crash_throw_exception",
-                                                          flask_debug_crash_throw_exception,
-                                                          "Intentionally throw exception", FCVAR_HIDDEN};
+    ManagedConCommand m_flask_debug_crash_dereference_null{
+        "flask_debug_crash_dereference_null",
+        flask_debug_crash_dereference_null,
+        "Intentionally dereference null",
+        FCVAR_HIDDEN,
+    };
+
+    ManagedConCommand m_flask_debug_crash_throw_exception{
+        "flask_debug_crash_throw_exception",
+        flask_debug_crash_throw_exception,
+        "Intentionally throw exception",
+        FCVAR_HIDDEN,
+    };
 
 #ifdef _WIN32
     LPTOP_LEVEL_EXCEPTION_FILTER m_sentry_unhandled_exception_filter{};

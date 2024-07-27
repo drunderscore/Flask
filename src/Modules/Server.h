@@ -76,10 +76,22 @@ public:
 
 private:
     Plugin& m_plugin;
-    ManagedConCommand m_flask_network_client_list{"flask_network_client_list", flask_network_client_list};
-    ManagedConCommand m_flask_send_user_interaction{"flask_send_user_interaction", flask_send_user_interaction};
-    ManagedConVar m_flask_network_tick_count_update_rate{"flask_network_tick_count_update_rate", "200", FCVAR_NONE,
-                                                         "Update the tick count to clients every this many ticks"};
+    ManagedConCommand m_flask_network_client_list{
+        "flask_network_client_list",
+        flask_network_client_list,
+    };
+
+    ManagedConCommand m_flask_send_user_interaction{
+        "flask_send_user_interaction",
+        flask_send_user_interaction,
+    };
+
+    ManagedConVar m_flask_network_tick_count_update_rate{
+        "flask_network_tick_count_update_rate",
+        "200",
+        FCVAR_NONE,
+        "Update the tick count to clients every this many ticks",
+    };
 
     std::set<uint32_t> m_pending_timer_updates;
     std::set<uint32_t> m_pending_team_updates;
