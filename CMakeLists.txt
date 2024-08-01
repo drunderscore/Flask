@@ -60,6 +60,7 @@ add_library(Flask SHARED
 
         src/Modules/AdditionalPointsOfInterest.cpp
         src/Modules/Camera.cpp
+        src/Modules/CameraRig.cpp
         src/Modules/DataTableChangeListener.cpp
         src/Modules/EntityEnumerator.cpp
         src/Modules/EntityListener.cpp

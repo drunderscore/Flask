@@ -1,6 +1,7 @@
 #include "Flask.h"
 #include "Modules/AdditionalPointsOfInterest.h"
 #include "Modules/Camera.h"
+#include "Modules/CameraRig.h"
 #include "Modules/DataTableChangeListener.h"
 #include "Modules/EntityEnumerator.h"
 #include "Modules/EntityListener.h"
@@ -92,6 +93,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         m_entity_enumerator = std::make_unique<Modules::EntityEnumerator>(*this);
         m_passtime = std::make_unique<Modules::Passtime>(*this);
         m_hud = std::make_unique<Modules::HUD>(*this);
+        m_camera_rig = std::make_unique<Modules::CameraRig>(*this);
     }
     catch (const std::exception& ex)
     {
@@ -114,6 +116,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 //        are likely elsewhere now!
 void Plugin::Unload()
 {
+    m_camera_rig.reset();
     m_hud.reset();
     m_passtime.reset();
     m_entity_enumerator.reset();

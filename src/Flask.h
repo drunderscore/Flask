@@ -78,6 +78,7 @@ public:
     Modules::EntityEnumerator& entity_enumerator() { return *m_entity_enumerator; }
     Modules::Passtime& passtime() { return *m_passtime; }
     Modules::HUD& hud() { return *m_hud; }
+    Modules::CameraRig& camera_rig() { return *m_camera_rig; }
 
 private:
     void nag_about_missing_support(std::string_view reason);
@@ -99,6 +100,7 @@ private:
     std::unique_ptr<Modules::EntityEnumerator> m_entity_enumerator;
     std::unique_ptr<Modules::Passtime> m_passtime;
     std::unique_ptr<Modules::HUD> m_hud;
+    std::unique_ptr<Modules::CameraRig> m_camera_rig;
 
     std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
 };
