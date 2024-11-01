@@ -398,6 +398,13 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                             });
 
     data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_flCloakMeter"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_player_update(data->m_ObjectID)
+                .set_cloak_meter(*static_cast<float*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_nStreaks"),
         [this](auto, auto output_variable, auto, auto object_id) {
             // m_nStreaks is an array of multiple streaks, but index 1 is an always-tracked kill streak count,
@@ -556,6 +563,8 @@ Server::~Server()
         "DT_TFPlayerSharedLocal", "m_flRageMeter"));
     data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
         "DT_TFPlayerSharedLocal", "m_bRageDraining"));
+    data_table_change_listener.remove_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TFPlayerShared", "m_flCloakMeter"));
 
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalPlayerExclusive", "m_iAmmo"));
@@ -1609,6 +1618,10 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                     player_update->set_is_rage_draining(*DataTableHelper::get_property_value_from_object<bool>(
                         player_shared_local, *network_cache.find_receive_property_by_table_name_and_property_name(
                                                  "DT_TFPlayerSharedLocal", "m_bRageDraining")));
+
+                    player_update->set_cloak_meter(*DataTableHelper::get_property_value_from_object<float>(
+                        player_shared_local, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                                 "DT_TFPlayerShared", "m_flCloakMeter")));
 
                     auto streaks = get_player_killstreaks(entity);
                     player_update->set_kill_streak(streaks[1]);

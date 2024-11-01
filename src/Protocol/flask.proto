@@ -189,6 +189,8 @@ message PlayerUpdate
 
   // Cannot use enums as map keys unfortunately...
   map<int32, int32> ammo = 24;
+
+  optional float cloak_meter = 25;
 };
 
 message PlayerRemove {
