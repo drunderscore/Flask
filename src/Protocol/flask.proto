@@ -160,6 +160,7 @@ message PlayerUpdate
     STEALTHED = 4;
     INVULNERABLE = 5;
     TAUNTING = 7;
+    INVULNERABLE_WEARINGOFF = 8;
     OFFENSEBUFF = 16;
     BURNING = 22;
     URINE = 24;
