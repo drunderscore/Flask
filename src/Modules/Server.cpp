@@ -1177,22 +1177,22 @@ void Server::update(Badge<Plugin>)
             {
                 if (previous_weapons[i] != my_weapons[i])
                 {
-                    CBaseHandle weapon_handle(my_weapons[i]);
+                    CBaseHandle previous_weapon_handle(previous_weapons[i]);
 
-                    if (!weapon_handle.IsValid())
-                    {
+                    // If we previously had this weapon, be sure to remove it, so the baseline sync mentioned below is
+                    // understood (and doesn't act liek a delta).
+                    if (previous_weapon_handle.IsValid())
                         get_or_create_pending_player_update(entity_id).add_weapons_removed(i);
+
+                    CBaseHandle weapon_handle(my_weapons[i]);
+                    if (!weapon_handle.IsValid())
                         continue;
-                    }
 
                     auto weapon =
                         m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(weapon_handle);
 
                     if (!weapon)
-                    {
-                        get_or_create_pending_player_update(entity_id).add_weapons_removed(i);
                         continue;
-                    }
 
                     (*get_or_create_pending_player_update(entity_id).mutable_weapons())[i] =
                         std::move(*create_player_update_weapon(weapon).release());
