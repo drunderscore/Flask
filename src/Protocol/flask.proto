@@ -127,6 +127,7 @@ message PlayerUpdate
     optional uint32 definition_index = 1;
     optional int32 clip = 2;
     optional float charge_level = 3;
+    optional uint32 pipebomb_count = 4;
   };
 
   reserved 11;

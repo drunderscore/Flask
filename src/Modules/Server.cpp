@@ -222,6 +222,13 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                                     .set_charge_level(*static_cast<float*>(output_variable));
                                             });
 
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_PipebombLauncherLocalData", "m_iPipebombCount"),
+                                            [this](auto data, auto, auto output_variable) {
+                                                get_or_create_pending_player_update_weapon(data->m_ObjectID)
+                                                    .set_pipebomb_count(*static_cast<int*>(output_variable));
+                                            });
+
     data_table_change_listener.add_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseCombatCharacter",
                                                                              "m_hActiveWeapon"),
@@ -919,6 +926,22 @@ std::unique_ptr<Protocol::PlayerUpdate::Weapon> Server::create_player_update_wea
 
         weapon_update->set_charge_level(*DataTableHelper::get_property_value_from_object<float>(
             weapon->GetDataTableBasePtr(), *charge_level_property));
+    }
+    else if (weapon->GetClientClass()->GetName() == "CTFPipebombLauncher"sv)
+    {
+        auto pipebomb_launcher_local_data_property =
+            m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_WeaponPipebombLauncher",
+                                                                                           "PipebombLauncherLocalData");
+
+        auto pipebomb_launcher_local_data = DataTableHelper::get_property_value_from_object<void>(
+            weapon->GetDataTableBasePtr(), *pipebomb_launcher_local_data_property);
+
+        auto pipebomb_count = *DataTableHelper::get_property_value_from_object<int>(
+            pipebomb_launcher_local_data,
+            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                "DT_PipebombLauncherLocalData", "m_iPipebombCount"));
+
+        weapon_update->set_pipebomb_count(pipebomb_count);
     }
 
     weapon_update->set_definition_index(
