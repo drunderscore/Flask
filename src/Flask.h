@@ -11,6 +11,8 @@
 
 class C_HLTVCamera;
 class CClientEntityList;
+class ConVar;
+class IConVar;
 
 namespace Flask
 {
@@ -105,5 +107,8 @@ private:
     std::unique_ptr<Modules::CameraRig> m_camera_rig;
 
     std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
+
+    static void check_convar_to_enable_debug_spew(ConVar*);
+    static void on_convar_change(IConVar*, const char* old_value, float old_value_float);
 };
 }

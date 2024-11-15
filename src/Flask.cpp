@@ -46,20 +46,8 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 
     ConnectTier1Libraries(&interface_factory, 1);
 
-    g_pCVar->FindVar("developer")->InstallChangeCallback([](auto convar_interface, auto, auto) {
-        auto convar = dynamic_cast<ConVar*>(convar_interface);
-
-        if (convar->GetInt() >= 2)
-        {
-            spdlog::set_level(spdlog::level::debug);
-            spdlog::debug("Flask debug spew enabled");
-        }
-        else
-        {
-            spdlog::debug("Flask debug spew disabled");
-            spdlog::set_level(spdlog::level::info);
-        }
-    });
+    g_pCVar->InstallGlobalChangeCallback(on_convar_change);
+    check_convar_to_enable_debug_spew(g_pCVar->FindVar("developer"));
 
     try
     {
@@ -134,6 +122,9 @@ void Plugin::Unload()
     m_io_context.reset();
 
     ConVar_Unregister();
+
+    g_pCVar->RemoveGlobalChangeCallback(on_convar_change);
+
     DisconnectTier1Libraries();
 
     spdlog::info("Flask unloaded");
@@ -175,6 +166,28 @@ void Plugin::nag_about_missing_support(std::string_view reason)
     interfaces().engine_client().Con_NXPrintf(&print, "WARNING:  %.*s", reason.size(), reason.data());
     print.index = 5;
     interfaces().engine_client().Con_NXPrintf(&print, "This is unsupported by Flask");
+}
+
+void Plugin::check_convar_to_enable_debug_spew(ConVar* convar)
+{
+    if (convar->GetInt() >= 2)
+    {
+        spdlog::set_level(spdlog::level::debug);
+        spdlog::debug("Flask debug spew enabled");
+    }
+    else
+    {
+        spdlog::debug("Flask debug spew disabled");
+        spdlog::set_level(spdlog::level::info);
+    }
+}
+
+void Plugin::on_convar_change(IConVar* convar_interface, const char* old_value, float old_value_float)
+{
+    auto convar = dynamic_cast<ConVar*>(convar_interface);
+
+    if (convar && convar->GetName() == "developer"sv)
+        check_convar_to_enable_debug_spew(convar);
 }
 
 void Plugin::level_init_post_entity(Badge<Modules::GameSystem>)
