@@ -13,6 +13,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if (WIN32)
     add_compile_options(/MT)
+else()
+    add_compile_options(-fno-gnu-unique)
 endif ()
 
 set(protobuf_BUILD_TESTS OFF)
