@@ -537,25 +537,13 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
 
     accept();
 
-    g_pCVar->InstallGlobalChangeCallback([](auto* convar_interface, auto* previous_value, auto) {
-        auto convar = dynamic_cast<ConVar*>(convar_interface);
-
-        if (convar && s_convars_to_sync.contains(convar->GetName()))
-        {
-            Protocol::Event event;
-
-            auto convar_update = new Protocol::ConVarUpdate;
-
-            convar_update->set_name(convar->GetName());
-            convar_update->set_value(convar->GetString());
-            event.set_allocated_con_var_update(convar_update);
-            Plugin::the().server().send(event);
-        }
-    });
+    g_pCVar->InstallGlobalChangeCallback(on_convar_change);
 }
 
 Server::~Server()
 {
+    g_pCVar->RemoveGlobalChangeCallback(on_convar_change);
+
     auto& network_cache = m_plugin.network_cache();
     auto& data_table_change_listener = m_plugin.data_table_change_listener();
 
@@ -2075,6 +2063,23 @@ void Server::flask_send_user_interaction(const CCommand& args)
         user_interaction->set_value(args.Arg(1));
 
         event.set_allocated_user_interaction(user_interaction);
+        Plugin::the().server().send(event);
+    }
+}
+
+void Server::on_convar_change(IConVar* convar_interface, const char* old_value, float old_value_float)
+{
+    auto convar = dynamic_cast<ConVar*>(convar_interface);
+
+    if (convar && s_convars_to_sync.contains(convar->GetName()))
+    {
+        Protocol::Event event;
+
+        auto convar_update = new Protocol::ConVarUpdate;
+
+        convar_update->set_name(convar->GetName());
+        convar_update->set_value(convar->GetString());
+        event.set_allocated_con_var_update(convar_update);
         Plugin::the().server().send(event);
     }
 }

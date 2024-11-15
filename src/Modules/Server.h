@@ -197,5 +197,7 @@ private:
     static std::set<std::string_view> s_engineer_buildings_to_sync;
     static void flask_network_client_list(const CCommand&);
     static void flask_send_user_interaction(const CCommand&);
+
+    static void on_convar_change(IConVar*, const char* old_value, float old_value_float);
 };
 }
