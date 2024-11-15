@@ -24,9 +24,8 @@ using namespace std::string_view_literals;
 
 namespace Flask
 {
-Plugin Plugin::s_the;
-EXPOSE_SINGLE_INTERFACE_GLOBALVAR(Plugin, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS,
-                                  Plugin::s_the)
+Plugin* Plugin::s_the{};
+EXPOSE_INTERFACE_FN(Plugin::create, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS);
 
 #ifdef POSIX
 std::string_view Plugin::s_client_library_name = "tf/bin/linux64/client.so";
@@ -101,6 +100,8 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         return false;
     }
 
+    s_the = this;
+
     MathLib_Init(2.2f, 2.2f, 0.0f, 2.0f);
     ConVar_Register();
 
@@ -138,6 +139,21 @@ void Plugin::Unload()
     spdlog::info("Flask unloaded");
 
     std::erase(spdlog::default_logger()->sinks(), m_tier0_sink);
+
+    s_the = {};
+    delete this;
+}
+
+void* Plugin::create()
+{
+    if (s_the)
+    {
+        // You don't want two of us... but it's at least safe to use this function then.
+        spdlog::warn("Trying to load Flask whilst it's already loaded!");
+        return nullptr;
+    }
+
+    return new Plugin;
 }
 
 void Plugin::update(Badge<Modules::GameSystem>)

@@ -46,8 +46,10 @@ public:
     {
     }
 
-    static Plugin s_the;
-    static Plugin& the() { return s_the; }
+    static Plugin* s_the;
+    static Plugin& the() { return *s_the; }
+
+    static void* create();
 
     void update(Badge<Modules::GameSystem>);
     void level_init_post_entity(Badge<Modules::GameSystem>);
