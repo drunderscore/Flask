@@ -1394,8 +1394,6 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
         }
     }
 
-    if (m_pending_player_updates.erase(entity_index) > 0)
-        spdlog::debug("Player entity removed that had a pending update!");
     if (m_pending_weapon_updates.erase(entity_index) > 0)
         spdlog::debug("Weapon entity removed that had a pending update!");
     else if (m_pending_building_updates.erase(entity_index) > 0)
