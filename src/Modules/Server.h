@@ -182,6 +182,7 @@ private:
     std::unique_ptr<Protocol::TeamUpdate> create_team_update(void* team) const;
     std::unique_ptr<Protocol::PlayerUpdate::Weapon> create_player_update_weapon(IClientNetworkable* weapon) const;
     std::unique_ptr<Protocol::PlayerUpdate::Statistics> create_player_update_statistics(void* player) const;
+    std::unique_ptr<Protocol::Level> create_level() const;
 
     std::unique_ptr<Protocol::Player> create_player_from_user_id(uint8_t user_id) const;
 

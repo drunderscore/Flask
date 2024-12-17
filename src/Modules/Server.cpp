@@ -968,6 +968,15 @@ std::unique_ptr<Protocol::PlayerUpdate::Statistics> Server::create_player_update
     return statistics;
 }
 
+std::unique_ptr<Protocol::Level> Server::create_level() const
+{
+    auto level = std::make_unique<Protocol::Level>();
+
+    level->set_map_name(m_plugin.interfaces().engine_client().GetLevelName());
+
+    return level;
+}
+
 std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t user_id) const
 {
     auto entity_index = m_plugin.interfaces().engine_client().GetPlayerForUserID(user_id);
@@ -1402,9 +1411,17 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
 
 void Server::level_init_post_entity(Badge<Plugin>)
 {
-    Protocol::Event event;
-    event.set_allocated_tick(create_tick().release());
-    send(event);
+    {
+        Protocol::Event event;
+        event.set_allocated_tick(create_tick().release());
+        send(event);
+    }
+
+    {
+        Protocol::Event event;
+        event.set_allocated_level_update(create_level().release());
+        send(event);
+    }
 
     // Update our previous pause to our current paused state, so we don't send a second tick count update event when it
     // realizes this (may) have changed.
@@ -1884,6 +1901,15 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
         {
             Protocol::Event event;
             event.set_allocated_tick(create_tick().release());
+
+            client.send(event);
+
+            break;
+        }
+        case Protocol::Event::kLevelUpdate:
+        {
+            Protocol::Event event;
+            event.set_allocated_level_update(create_level().release());
 
             client.send(event);
 

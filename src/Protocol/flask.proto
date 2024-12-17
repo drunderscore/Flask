@@ -234,6 +234,10 @@ message Tick {
   bool is_paused = 2;
 }
 
+message Level {
+  string map_name = 1;
+}
+
 message Listen {
   string event_name = 1;
 }
@@ -257,6 +261,7 @@ message Event {
     ConVarUpdate con_var_update = 11;
     Tick tick = 13;
     bool shutdown = 14;
+    Level level_update = 15;
   }
 
   // This was mistakenly included when we switched from JSON, it was never used.
