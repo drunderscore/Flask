@@ -25,7 +25,7 @@ namespace Flask::Modules
 JMP::Signature Passtime::s_passtime_logic_usage(
     "48 8D 05 ? ? ? ? 48 8B 10 31 C0 48 85 D2 74 ? 8B 82 48 0C 00 00 31 D2 4C 89 E7"sv);
 JMP::Signature Passtime::s_is_local_player_spectator(
-    "55 48 89 E5 E8 ? ? ? ? 48 85 C0 74 ? 48 89 C7 48 8B 00 FF 90 A8 09 00 00 5D 85 C0 0F 95 C0 C3"sv);
+    "55 48 89 E5 E8 ? ? ? ? 48 85 C0 74 ? 48 89 C7 48 8B 00 FF 90 ? ? ? ? 5D 85 C0 0F 95 C0 C3"sv);
 JMP::Signature Passtime::s_passtime_pass_reticle_update(
     "55 48 89 E5 41 56 41 55 41 54 53 48 83 EC 10 4C 8D 25 ? ? ? ? 49 8B 04 24 48 85 C0 0F 84 ? ? ? ?"sv);
 JMP::Signature Passtime::s_passtime_gun_client_think(
