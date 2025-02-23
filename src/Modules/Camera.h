@@ -43,7 +43,7 @@ private:
     static void calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle&, float& fov);
     static constexpr uintptr_t s_offset_of_hltv_camera_singleton_getter_usage = 49;
 #else
-    static constexpr uintptr_t s_offset_of_hltv_camera_singleton_getter_usage = 46;
+    static constexpr uintptr_t s_offset_of_hltv_camera_singleton_getter_usage = 13;
     static void __thiscall calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle&, float& fov);
 #endif
 

@@ -22,7 +22,7 @@ JMP::Signature Camera::s_hltv_camera_calc_view(
     "55 48 89 E5 41 57 49 89 CF 41 56 49 89 D6 41 55 49 89 F5 41 54 49 89 FC 53 48 83 EC 18 80 7F 54 00"sv);
 #else
 JMP::Signature Camera::s_call_to_hltv_camera_singleton_getter(
-    "E8 ? ? ? ? 48 85 C0 74 ? 48 8B 10 48 8B C8 FF 92 A8 07 00 00 85 C0 74 ? 48 8B 0D ? ? ? ? 48 8B 01 FF 90 B0 02 00 00 84 C0 74 ?"sv);
+    "48 8B 01 FF 90 B0 02 00 00 84 C0 74 ? E8 ? ? ? ? 48 8B C8 E8 ? ? ? ? 84 C0 75 ? 83 3B 01 7F ?"sv);
 JMP::Signature Camera::s_hltv_camera_set_primary_target_function(
     "48 89 5C 24 20 55 48 83 EC 40 8B 69 30 48 8B D9 3B EA 0F 84 ? ? ? ? 89 51 30 8B 49 14 48 89 74 24 50 48 89 7C 24 60 85 C9 7E ? E8 ? ? ? ? 48 85 C0 74 ?"sv);
 JMP::Signature Camera::s_hltv_camera_set_mode_function(
