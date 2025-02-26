@@ -65,10 +65,10 @@ int HUD::on_spectator_target_id_calculate_target_index(void* self, void* player)
 
 bool HUD::on_tf_player_panel_update(void* self)
 {
-    auto& player_steam_id = *reinterpret_cast<uint64_t*>(
-        reinterpret_cast<uintptr_t>(self) + s_size_of_vgui_editable_panel + s_offset_of_tf_player_panel_steam_id);
-    auto& player_index = *reinterpret_cast<int*>(reinterpret_cast<uintptr_t>(self) + s_size_of_vgui_editable_panel +
-                                                 s_offset_of_tf_player_panel_player_index);
+    auto& player_steam_id =
+        *reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(self) + s_offset_of_tf_player_panel_steam_id);
+    auto& player_index =
+        *reinterpret_cast<int*>(reinterpret_cast<uintptr_t>(self) + s_offset_of_tf_player_panel_player_index);
 
     auto& hud = Plugin::the().hud();
 

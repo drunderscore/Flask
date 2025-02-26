@@ -31,9 +31,14 @@ private:
     //        CastingEssentials Next.
     //        That would mean all these offsets are automatically correct just be creating a structure of the same
     //        layout and inheriting vgui::EditablePanel.
+#ifdef POSIX
     static constexpr uint32_t s_size_of_vgui_editable_panel = 368;
-    static constexpr uint32_t s_offset_of_tf_player_panel_player_index = 192;
-    static constexpr uint32_t s_offset_of_tf_player_panel_steam_id = 208;
+    static constexpr uint32_t s_offset_of_tf_player_panel_player_index = s_size_of_vgui_editable_panel + 192;
+    static constexpr uint32_t s_offset_of_tf_player_panel_steam_id = s_size_of_vgui_editable_panel + 208;
+#else
+    static constexpr uint32_t s_offset_of_tf_player_panel_player_index = 580;
+    static constexpr uint32_t s_offset_of_tf_player_panel_steam_id = 592;
+#endif
 
     subhook::Hook m_spectator_target_id_calculate_target_index_subhook;
     subhook::Hook m_tf_player_panel_subhook;
