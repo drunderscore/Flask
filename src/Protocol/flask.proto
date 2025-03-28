@@ -31,6 +31,8 @@ message PlayerDeath {
   int32 weapon_definition_index = 7;
   Crit crit = 8;
   bool medic_charged = 9;
+  int32 kill_streak = 10;
+  bool victim_rocket_jumping = 11;
 }
 
 message Observe {

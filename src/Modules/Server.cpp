@@ -1979,6 +1979,8 @@ void Server::FireGameEvent(IGameEvent* event)
         player_death->set_weapon_name(event->GetString("weapon"));
         player_death->set_weapon_id(event->GetInt("weapon_id"));
         player_death->set_weapon_definition_index(event->GetInt("weapon_def_index"));
+        player_death->set_kill_streak(event->GetInt("kill_streak_total"));
+        player_death->set_victim_rocket_jumping(event->GetBool("rocket_jump"));
 
         auto crit_type = event->GetInt("crit_type");
         player_death->set_crit(static_cast<Protocol::PlayerDeath::Crit>(crit_type));
