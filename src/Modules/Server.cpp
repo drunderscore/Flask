@@ -1000,6 +1000,10 @@ std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t use
     player->set_name(player_info.name);
     player->set_team(team);
 
+    if (!player_info.fakeplayer && player_info.friendsID != 0)
+        player->set_steam_id(
+            CSteamID(player_info.friendsID, 1, k_EUniversePublic, k_EAccountTypeIndividual).ConvertToUint64());
+
     return player;
 }
 
