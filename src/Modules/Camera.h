@@ -64,5 +64,12 @@ private:
     C_HLTVCameraSetModeFn m_hltv_camera_set_mode_function{};
     C_HLTVCameraCalcViewFn m_hltv_camera_calc_view{};
     subhook::Hook m_hltv_camera_calc_view_subhook{};
+
+    ManagedConVar m_flask_camera_no_smoothing{
+        "flask_camera_no_smoothing",
+        "0",
+        FCVAR_NONE,
+        "Prevent the HLTV camera from doing any angle smoothing.",
+    };
 };
 }

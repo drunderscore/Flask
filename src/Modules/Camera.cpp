@@ -69,6 +69,9 @@ void Camera::calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle& a
 {
     auto& camera = Plugin::the().camera();
 
+    if (camera.m_flask_camera_no_smoothing->GetBool())
+        camera.camera().last_angle_update_time = 0.0f;
+
     {
         subhook::ScopedHookRemove hltv_camera_calc_view_subhook_scoped_remove(&camera.m_hltv_camera_calc_view_subhook);
         camera.m_hltv_camera_calc_view(self, origin, angles, fov);
