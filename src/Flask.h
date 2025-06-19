@@ -83,6 +83,7 @@ public:
     Modules::Passtime& passtime() { return *m_passtime; }
     Modules::HUD& hud() { return *m_hud; }
     Modules::CameraRig& camera_rig() { return *m_camera_rig; }
+    Modules::DebugTools& debug_tools() { return *m_debug_tools; }
 
 private:
     void nag_about_missing_support(std::string_view reason);
@@ -105,6 +106,7 @@ private:
     std::unique_ptr<Modules::Passtime> m_passtime;
     std::unique_ptr<Modules::HUD> m_hud;
     std::unique_ptr<Modules::CameraRig> m_camera_rig;
+    std::unique_ptr<Modules::DebugTools> m_debug_tools;
 
     std::shared_ptr<Tier0LoggerSingleThreaded> m_tier0_sink;
 

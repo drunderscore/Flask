@@ -6,6 +6,7 @@ class AdditionalPointsOfInterest;
 class Camera;
 class CameraRig;
 class DataTableChangeListener;
+class DebugTools;
 class EntityEnumerator;
 class EntityListener;
 class ErrorReporting;

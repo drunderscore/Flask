@@ -64,6 +64,7 @@ add_library(Flask SHARED
         src/Modules/Camera.cpp
         src/Modules/CameraRig.cpp
         src/Modules/DataTableChangeListener.cpp
+        src/Modules/DebugTools.cpp
         src/Modules/EntityEnumerator.cpp
         src/Modules/EntityListener.cpp
         src/Modules/ErrorReporting.cpp

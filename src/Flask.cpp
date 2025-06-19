@@ -3,6 +3,7 @@
 #include "Modules/Camera.h"
 #include "Modules/CameraRig.h"
 #include "Modules/DataTableChangeListener.h"
+#include "Modules/DebugTools.h"
 #include "Modules/EntityEnumerator.h"
 #include "Modules/EntityListener.h"
 #include "Modules/ErrorReporting.h"
@@ -81,6 +82,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
         m_passtime = std::make_unique<Modules::Passtime>(*this);
         m_hud = std::make_unique<Modules::HUD>(*this);
         m_camera_rig = std::make_unique<Modules::CameraRig>(*this);
+        m_debug_tools = std::make_unique<Modules::DebugTools>();
     }
     catch (const std::exception& ex)
     {
@@ -105,6 +107,7 @@ bool Plugin::Load(CreateInterfaceFn interface_factory, CreateInterfaceFn game_se
 //        are likely elsewhere now!
 void Plugin::Unload()
 {
+    m_debug_tools.reset();
     m_camera_rig.reset();
     m_hud.reset();
     m_passtime.reset();
