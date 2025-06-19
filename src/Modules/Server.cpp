@@ -1310,6 +1310,10 @@ void Server::update(Badge<Plugin>)
         for (auto& [entity_id, building_update] : m_pending_building_updates)
         {
             auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(entity_id);
+
+            if (!entity)
+                continue;
+
             if (!s_engineer_buildings_to_sync.contains(entity->GetClientClass()->GetName()))
                 continue;
 
