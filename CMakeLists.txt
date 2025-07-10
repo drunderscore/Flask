@@ -85,7 +85,6 @@ target_compile_definitions(Flask PRIVATE
         # FIXME: Do we need this?
         PLATFORM_64BITS
         COMPILER_MSVC64
-        NO_MALLOC_OVERRIDE
 )
 
 if (FLASK_DEVELOPMENT)
@@ -109,7 +108,11 @@ target_include_directories(Flask SYSTEM PRIVATE
 
 # Technically not Linux, but no one is building this on APPLE
 if (UNIX)
-    target_compile_options(Flask PRIVATE -iquote ${HL2SDK_PATH}/public/tier1)
+    # FIXME: Rebasing/merging alliedmodders/hl2sdk into drunderscore/hl2sdk got us the VScript changes, but it also got us
+    #        some changes to utlvector.h. These changes do not compile on Linux without -fpermissive.
+    #        On it's own it's not that problematic, but it means that ALL of my code will also be compiled with
+    #        -fpermissive, which isn't desirable at all.
+    target_compile_options(Flask PRIVATE -fpermissive -iquote ${HL2SDK_PATH}/public/tier1)
 
     target_compile_definitions(Flask PRIVATE
             stricmp=strcasecmp
