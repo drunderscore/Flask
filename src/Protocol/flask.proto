@@ -252,9 +252,23 @@ message ControlPointsUpdate {
     optional uint32 owning_team = 5;
     optional float capture_percentage = 6;
     optional bool locked = 7;
+    optional float path_distance = 8;
   }
 
   map<uint32, ControlPoint> control_points = 1;
+}
+
+message TrainUpdate {
+    uint32 index = 1;
+    optional uint32 team = 2;
+    optional float total_progress = 3;
+    optional int32 speed = 4;
+    optional float recede_time = 5;
+    optional uint32 number_of_capturers = 6;
+}
+
+message TrainRemove {
+    uint32 index = 1;
 }
 
 message Listen {
@@ -282,6 +296,8 @@ message Event {
     bool shutdown = 14;
     Level level_update = 15;
     ControlPointsUpdate control_points_update = 16;
+    TrainUpdate train_update = 17;
+    TrainRemove train_remove = 18;
   }
 
   // This was mistakenly included when we switched from JSON, it was never used.

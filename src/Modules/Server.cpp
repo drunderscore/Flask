@@ -135,14 +135,16 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             // It's highly likely there's more data following that hasn't been put into the structure yet.
             auto entity = m_plugin.interfaces().client_entity_list().GetClientNetworkable(data->m_ObjectID);
 
-            if (entity->GetClientClass()->GetName() != "CTFPlayer"sv)
-                return;
-
-            if (m_plugin.interfaces().engine_client().IsHLTV() &&
-                entity->entindex() == m_plugin.interfaces().engine_client().GetLocalPlayer())
-                return;
-
-            get_or_create_pending_player_update(data->m_ObjectID).set_team(*static_cast<int*>(output_variable));
+            if (entity->GetClientClass()->GetName() == "CTFPlayer"sv)
+            {
+                if (!(m_plugin.interfaces().engine_client().IsHLTV() &&
+                      entity->entindex() == m_plugin.interfaces().engine_client().GetLocalPlayer()))
+                    get_or_create_pending_player_update(data->m_ObjectID).set_team(*static_cast<int*>(output_variable));
+            }
+            else if (entity->GetClientClass()->GetName() == "CTeamTrainWatcher"sv)
+            {
+                get_or_create_pending_train_update(data->m_ObjectID).set_team(*static_cast<int*>(output_variable));
+            }
         });
 
     data_table_change_listener.add_listener(
@@ -639,6 +641,45 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             get_or_create_previous_objective_resource().locked = std::move(values);
         });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_flPathDistance"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::path_distance)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<float**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().path_distance = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+                                                "DT_TeamTrainWatcher", "m_flTotalProgress"),
+                                            [this](auto data, auto, auto output_variable) {
+                                                get_or_create_pending_train_update(data->m_ObjectID)
+                                                    .set_total_progress(*static_cast<float*>(output_variable));
+                                            });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamTrainWatcher",
+                                                                             "m_iTrainSpeedLevel"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_train_update(data->m_ObjectID).set_speed(*static_cast<int*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamTrainWatcher", "m_flRecedeTime"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_train_update(data->m_ObjectID).set_recede_time(*static_cast<float*>(output_variable));
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamTrainWatcher", "m_nNumCappers"),
+        [this](auto data, auto, auto output_variable) {
+            get_or_create_pending_train_update(data->m_ObjectID)
+                .set_number_of_capturers(*static_cast<int*>(output_variable));
+        });
+
     accept();
 
     g_pCVar->InstallGlobalChangeCallback(on_convar_change);
@@ -867,6 +908,14 @@ std::span<bool> Server::control_point_locked() const
             std::tuple_size_v<decltype(PreviousObjectiveResource::locked)::value_type>};
 }
 
+std::span<float> Server::control_point_path_distance() const
+{
+    return {DataTableHelper::get_property_value_from_object<float>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_flPathDistance")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::path_distance)::value_type>};
+}
+
 std::unique_ptr<Protocol::Tick> Server::create_tick() const
 {
     auto tick = std::make_unique<Protocol::Tick>();
@@ -1069,17 +1118,55 @@ std::unique_ptr<Protocol::ControlPointsUpdate> Server::create_control_point_upda
         auto owning_team = control_point_owning_team();
         auto capture_percentage = control_point_capture_percentage();
         auto locked = control_point_locked();
+        auto path_distance = control_point_path_distance();
 
         control_point.set_capturing_team(capturing_team[index]);
         control_point.set_blocked(blocked[index]);
         control_point.set_owning_team(owning_team[index]);
         control_point.set_capture_percentage(capture_percentage[index]);
         control_point.set_locked(locked[index]);
+        control_point.set_path_distance(path_distance[index]);
 
         (*control_points_update->mutable_control_points())[index] = std::move(control_point);
     }
 
     return control_points_update;
+}
+
+std::unique_ptr<Protocol::TrainUpdate> Server::create_train_update(void* train) const
+{
+    auto team_train_watcher_total_progress_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamTrainWatcher",
+                                                                                       "m_flTotalProgress");
+    auto team_train_watcher_train_speed_level =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamTrainWatcher",
+                                                                                       "m_iTrainSpeedLevel");
+
+    auto team_train_watcher_recede_time =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamTrainWatcher",
+                                                                                       "m_flRecedeTime");
+
+    auto team_train_watcher_num_cappers =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TeamTrainWatcher",
+                                                                                       "m_nNumCappers");
+
+    auto base_entity_team_number_property =
+        m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseEntity", "m_iTeamNum");
+
+    auto train_update = std::make_unique<Protocol::TrainUpdate>();
+
+    train_update->set_team(
+        *DataTableHelper::get_property_value_from_object<int>(train, *base_entity_team_number_property));
+    train_update->set_total_progress(
+        *DataTableHelper::get_property_value_from_object<float>(train, *team_train_watcher_total_progress_property));
+    train_update->set_speed(
+        *DataTableHelper::get_property_value_from_object<int>(train, *team_train_watcher_train_speed_level));
+    train_update->set_recede_time(
+        *DataTableHelper::get_property_value_from_object<float>(train, *team_train_watcher_recede_time));
+    train_update->set_number_of_capturers(
+        *DataTableHelper::get_property_value_from_object<int>(train, *team_train_watcher_num_cappers));
+
+    return train_update;
 }
 
 std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t user_id) const
@@ -1334,6 +1421,15 @@ void Server::update(Badge<Plugin>)
                         (*(*get_or_create_pending_control_points_update().mutable_control_points())[index]
                               .mutable_capture_time())[team] = current_capture_time[array_index];
                 }
+
+                if (auto previous_path_distance = m_previous_objective_resource->path_distance;
+                    previous_path_distance.has_value())
+                {
+                    if (auto current_path_distance = control_point_path_distance();
+                        (*previous_path_distance)[index] != current_path_distance[index])
+                        (*get_or_create_pending_control_points_update().mutable_control_points())[index]
+                            .set_path_distance(current_path_distance[index]);
+                }
             }
         }
 
@@ -1521,6 +1617,21 @@ void Server::update(Badge<Plugin>)
         m_pending_building_updates.clear();
     }
 
+    if (!m_pending_train_updates.empty())
+    {
+        for (auto& [entity_id, train_update] : m_pending_train_updates)
+        {
+            train_update->set_index(entity_id);
+
+            Protocol::Event event;
+
+            event.set_allocated_train_update(train_update.release());
+            send(event);
+        }
+
+        m_pending_train_updates.clear();
+    }
+
     if (!m_pending_player_updates.empty())
     {
         for (auto& [entity_id, player_update] : m_pending_player_updates)
@@ -1607,11 +1718,24 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
             get_or_create_pending_player_update(owner_handle.GetEntryIndex()).add_buildings_removed(entity_index);
         }
     }
+    else if (entity->GetClientClass()->GetName() == "CTeamTrainWatcher"sv)
+    {
+        Protocol::Event event;
+
+        auto train_remove = new Protocol::TrainRemove;
+        train_remove->set_index(static_cast<uint32_t>(entity_index));
+
+        event.set_allocated_train_remove(train_remove);
+
+        send(event);
+    }
 
     if (m_pending_weapon_updates.erase(entity_index) > 0)
         spdlog::debug("Weapon entity removed that had a pending update!");
     else if (m_pending_building_updates.erase(entity_index) > 0)
         spdlog::debug("Building entity removed that had a pending update!");
+    else if (m_pending_train_updates.erase(entity_index) > 0)
+        spdlog::debug("Train watcher entity removed that had a pending update!");
 }
 
 void Server::level_init_post_entity(Badge<Plugin>)
@@ -2142,8 +2266,29 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                 event.set_allocated_control_points_update(create_control_point_update().release());
                 client.send(event);
             }
+            break;
         }
-        break;
+        case Protocol::Event::kTrainUpdate:
+        {
+            m_plugin.entity_enumerator().all([this, &client](auto entity) {
+                auto client_class_name = entity->GetClientClass()->GetName();
+
+                if (client_class_name == "CTeamTrainWatcher"sv)
+                {
+                    auto train_update = create_train_update(entity->GetDataTableBasePtr());
+                    train_update->set_index(entity->entindex());
+
+                    Protocol::Event event;
+                    event.set_allocated_train_update(train_update.release());
+
+                    client.send(event);
+                }
+
+                return EntityEnumerator::IterationDecision::Continue;
+            });
+
+            break;
+        }
         case Protocol::Event::DATA_NOT_SET:
             break;
     }

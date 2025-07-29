@@ -89,6 +89,7 @@ public:
         std::optional<std::array<uint32_t, s_max_control_points>> owning_team;
         std::optional<std::array<float, s_max_control_points>> capture_percentage;
         std::optional<std::array<bool, s_max_control_points>> locked;
+        std::optional<std::array<float, s_max_control_points>> path_distance;
     };
 
 private:
@@ -114,6 +115,7 @@ private:
     std::set<uint32_t> m_pending_team_updates;
     std::unique_ptr<Protocol::GameRulesUpdate> m_pending_game_rules_update;
     std::unique_ptr<Protocol::ControlPointsUpdate> m_pending_control_points_update;
+    std::map<uint32_t, std::unique_ptr<Protocol::TrainUpdate>> m_pending_train_updates;
 
     std::map<uint8_t, std::unique_ptr<Protocol::PlayerUpdate>> m_pending_player_updates;
     std::map<uint32_t, std::unique_ptr<Protocol::PlayerUpdate::Weapon>> m_pending_weapon_updates;
@@ -161,6 +163,15 @@ private:
             m_pending_control_points_update = std::make_unique<Protocol::ControlPointsUpdate>();
 
         return *m_pending_control_points_update;
+    }
+
+    Protocol::TrainUpdate& get_or_create_pending_train_update(uint32_t index)
+    {
+        if (auto it = m_pending_train_updates.find(index); it != m_pending_train_updates.end())
+            return *it->second;
+
+        auto [inserted_pair, _] = m_pending_train_updates.insert({index, std::make_unique<Protocol::TrainUpdate>()});
+        return *inserted_pair->second;
     }
 
     Protocol::PlayerUpdate& get_or_create_pending_player_update(uint8_t index)
@@ -221,6 +232,7 @@ private:
     std::span<uint32_t> control_point_owning_team() const;
     std::span<float> control_point_capture_percentage() const;
     std::span<bool> control_point_locked() const;
+    std::span<float> control_point_path_distance() const;
 
     size_t control_point_index_team_array(int index, int team) const
     {
@@ -234,6 +246,7 @@ private:
     std::unique_ptr<Protocol::PlayerUpdate::Statistics> create_player_update_statistics(void* player) const;
     std::unique_ptr<Protocol::Level> create_level() const;
     std::unique_ptr<Protocol::ControlPointsUpdate> create_control_point_update() const;
+    std::unique_ptr<Protocol::TrainUpdate> create_train_update(void* train) const;
 
     std::unique_ptr<Protocol::Player> create_player_from_user_id(uint8_t user_id) const;
 
