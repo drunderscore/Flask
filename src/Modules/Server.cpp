@@ -530,6 +530,13 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                                                     .set_upgrade_metal_required(*static_cast<int*>(output_variable));
                                             });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamplayRoundBasedRules",
+                                                                             "m_bInOvertime"),
+        [this](auto, auto, auto output_variable) {
+            get_or_create_pending_game_rules_update().set_in_overtime(*static_cast<bool*>(output_variable));
+        });
+
     m_plugin.entity_listener().add_delete_entity_callback(
         [this](auto entity, auto reason, auto on_recreating_all_entities) {
             on_delete_entity(entity, reason, on_recreating_all_entities);
@@ -653,6 +660,9 @@ Server::~Server()
 
     data_table_change_listener.remove_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_LocalPlayerExclusive", "m_iAmmo"));
+
+    data_table_change_listener.remove_listener(*network_cache.find_receive_property_by_table_name_and_property_name(
+        "DT_TeamplayRoundBasedRules", "m_bInOvertime"));
 
     if (m_tf_player_resource_create_fn_original)
     {
@@ -1628,6 +1638,10 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                 game_rules_update->set_playing_koth(*DataTableHelper::get_property_value_from_object<bool>(
                     m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
                                       "DT_TFGameRules", "m_bPlayingKoth")));
+
+                game_rules_update->set_in_overtime(*DataTableHelper::get_property_value_from_object<bool>(
+                    m_game_rules, *network_cache.find_receive_property_by_table_name_and_property_name(
+                                      "DT_TeamplayRoundBasedRules", "m_bInOvertime")));
 
                 event.set_allocated_game_rules_update(game_rules_update);
                 client.send(event);

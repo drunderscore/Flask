@@ -102,6 +102,8 @@ message GameRulesUpdate {
   // TF Game rules
   optional uint32 game_type = 5;
   optional bool playing_koth = 6;
+
+  optional bool in_overtime = 7;
 }
 
 message TeamUpdate {
