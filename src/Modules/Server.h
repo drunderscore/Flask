@@ -3,11 +3,10 @@
 #include "../Forward.h"
 #include "../ManagedConCommand.h"
 #include "../Network/WebsocketServer.h"
-#include "../Protocol/Flask.h"
-#include "Camera.h"
 #include "Forward.h"
 #include <array>
 #include <basehandle.h>
+#include <cdll_int.h>
 #include <client_class.h>
 #include <igameevents.h>
 #include <map>
@@ -35,7 +34,7 @@ public:
 
     void level_init_post_entity(Badge<Plugin>);
     void level_shutdown_pre_entity(Badge<Plugin>);
-    void update(Badge<Plugin>);
+    void update(Badge<Plugin>) { update(); }
 
     // C_PlayerResource (and it's TF inheritor, C_TFPlayerResource) store player variables we care about in arrays,
     // separate from the player entity. This is probably done in such a way so that all clients have access to certain
@@ -218,6 +217,8 @@ private:
         return *inserted_pair->second;
     }
 
+    void update();
+
     void on_create_player_resource(IClientNetworkable*);
     void on_create_objective_resource(IClientNetworkable*);
     void on_delete_entity(IClientNetworkable*, const char* reason, bool on_recreating_all_entities);
@@ -264,6 +265,11 @@ private:
     uint32_t m_last_tick_update{};
     CreateClientClassFn m_tf_player_resource_create_fn_original{};
     CreateClientClassFn m_tf_objective_resource_create_fn_original{};
+
+    static void on_frame_stage_notify(void* self, ClientFrameStage_t);
+
+    decltype(on_frame_stage_notify)* m_base_client_dll_frame_stage_notify_original{};
+    decltype(on_frame_stage_notify)** m_base_client_dll_frame_stage_notify_vtable_entry{};
 
     // TODO: In the future, we should not define this list ourselves, but rather the client should tell us which convars
     //       it is interested in.

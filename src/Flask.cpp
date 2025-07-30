@@ -150,11 +150,7 @@ void* Plugin::create()
     return new Plugin;
 }
 
-void Plugin::update(Badge<Modules::GameSystem>)
-{
-    m_io_context->poll();
-    m_server->update({});
-}
+void Plugin::update(Badge<Modules::GameSystem>) { m_io_context->poll(); }
 
 void Plugin::nag_about_missing_support(std::string_view reason)
 {

@@ -705,6 +705,11 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
             get_or_create_previous_objective_resource().previous_points = std::move(values);
         });
 
+    m_base_client_dll_frame_stage_notify_vtable_entry =
+        &(*reinterpret_cast<decltype(on_frame_stage_notify)***>(&m_plugin.interfaces().base_client_dll()))[35];
+    m_base_client_dll_frame_stage_notify_original = *m_base_client_dll_frame_stage_notify_vtable_entry;
+    *m_base_client_dll_frame_stage_notify_vtable_entry = on_frame_stage_notify;
+
     accept();
 
     g_pCVar->InstallGlobalChangeCallback(on_convar_change);
@@ -713,6 +718,13 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
 Server::~Server()
 {
     g_pCVar->RemoveGlobalChangeCallback(on_convar_change);
+
+    if (m_base_client_dll_frame_stage_notify_vtable_entry && m_base_client_dll_frame_stage_notify_original)
+    {
+        *m_base_client_dll_frame_stage_notify_vtable_entry = m_base_client_dll_frame_stage_notify_original;
+        m_base_client_dll_frame_stage_notify_original = nullptr;
+        m_base_client_dll_frame_stage_notify_vtable_entry = nullptr;
+    }
 
     auto& network_cache = m_plugin.network_cache();
     auto& data_table_change_listener = m_plugin.data_table_change_listener();
@@ -1252,7 +1264,7 @@ std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(int user_id
     return player;
 }
 
-void Server::update(Badge<Plugin>)
+void Server::update()
 {
     auto is_paused = m_plugin.interfaces().engine_client().IsPaused();
     auto tick_count = m_plugin.interfaces().engine_tool().ClientTick();
@@ -2594,5 +2606,13 @@ void Server::on_convar_change(IConVar* convar_interface, const char* old_value, 
         event.set_allocated_con_var_update(convar_update);
         Plugin::the().server().send(event);
     }
+}
+
+void Server::on_frame_stage_notify(void* self, ClientFrameStage_t frame_stage)
+{
+    Plugin::the().server().m_base_client_dll_frame_stage_notify_original(self, frame_stage);
+
+    if (frame_stage == FRAME_NET_UPDATE_END)
+        Plugin::the().server().update();
 }
 }
