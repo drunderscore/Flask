@@ -45,6 +45,7 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
     game_event_manager.AddListener(this, "object_destroyed", false);
     game_event_manager.AddListener(this, "player_hurt", true);
     game_event_manager.AddListener(this, "player_info", false);
+    game_event_manager.AddListener(this, "teamplay_round_win", false);
 
     data_table_change_listener.add_listener(
         *network_cache.find_receive_property_by_table_name_and_property_name("DT_TeamplayRoundBasedRules",
@@ -2443,6 +2444,23 @@ void Server::FireGameEvent(IGameEvent* event)
         auto& pending_player_update = get_or_create_pending_player_update(index);
         pending_player_update.set_name(player_info.name);
         pending_player_update.set_steam_id(steam_id);
+    }
+    else if (event->GetName() == "teamplay_round_win"sv)
+    {
+        Protocol::Event protocol_event;
+
+        auto round_win = new Protocol::RoundWin;
+        round_win->set_team(event->GetInt("team"));
+        round_win->set_win_reason(static_cast<Protocol::RoundWin::WinReason>(event->GetInt("winreason")));
+        round_win->set_flag_capture_limit(event->GetInt("flagcaplimit"));
+        round_win->set_full_round(event->GetBool("full_round"));
+        round_win->set_round_time(event->GetFloat("round_time"));
+        round_win->set_losing_team_number_of_captures(event->GetInt("losing_team_num_caps"));
+        round_win->set_was_sudden_death(event->GetBool("was_sudden_death"));
+
+        protocol_event.set_allocated_round_win(round_win);
+
+        send(protocol_event);
     }
 }
 

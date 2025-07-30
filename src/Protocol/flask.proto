@@ -267,6 +267,37 @@ message TrainUpdate {
     optional uint32 number_of_capturers = 6;
 }
 
+message RoundWin {
+    enum WinReason {
+            WINREASON_NONE = 0;
+            WINREASON_ALL_POINTS_CAPTURED = 1;
+            WINREASON_OPPONENTS_DEAD = 2;
+            WINREASON_FLAG_CAPTURE_LIMIT = 3;
+            WINREASON_DEFEND_UNTIL_TIME_LIMIT = 4;
+            WINREASON_STALEMATE = 5;
+            WINREASON_TIMELIMIT = 6;
+            WINREASON_WINLIMIT = 7;
+            WINREASON_WINDIFFLIMIT = 8;
+
+            // TF
+            WINREASON_RD_REACTOR_CAPTURED = 9;
+            WINREASON_RD_CORES_COLLECTED = 10;
+            WINREASON_RD_REACTOR_RETURNED = 11;
+            WINREASON_PD_POINTS = 12;
+            WINREASON_SCORED = 13;
+            WINREASON_STOPWATCH_WATCHING_ROUNDS = 14;
+            WINREASON_STOPWATCH_WATCHING_FINAL_ROUND = 15;
+            WINREASON_STOPWATCH_PLAYING_ROUNDS = 16;
+    }
+    uint32 team = 1;
+    WinReason win_reason = 2;
+    uint32 flag_capture_limit = 3;
+    bool full_round = 4;
+    float round_time = 5;
+    uint32 losing_team_number_of_captures = 6;
+    bool was_sudden_death = 7;
+}
+
 message TrainRemove {
     uint32 index = 1;
 }
@@ -298,6 +329,7 @@ message Event {
     ControlPointsUpdate control_points_update = 16;
     TrainUpdate train_update = 17;
     TrainRemove train_remove = 18;
+    RoundWin round_win = 19;
   }
 
   // This was mistakenly included when we switched from JSON, it was never used.
