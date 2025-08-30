@@ -92,7 +92,7 @@ public:
         std::optional<std::array<float, s_max_control_points>> capture_percentage;
         std::optional<std::array<bool, s_max_control_points>> locked;
         std::optional<std::array<float, s_max_control_points>> path_distance;
-        std::optional<std::array<float, s_max_control_points * s_max_control_point_teams>> can_team_capture;
+        std::optional<std::array<bool, s_max_control_points * s_max_control_point_teams>> can_team_capture;
         std::optional<std::array<int, s_max_control_points * s_max_control_point_teams * s_max_previous_points>>
             previous_points;
     };
