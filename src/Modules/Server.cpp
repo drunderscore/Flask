@@ -681,6 +681,30 @@ Server::Server(Plugin& plugin) : Network::WebsocketServer(plugin.io_context()), 
                 .set_number_of_capturers(*static_cast<int*>(output_variable));
         });
 
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_bTeamCanCap"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::can_team_capture)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<bool**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().can_team_capture = std::move(values);
+        });
+
+    data_table_change_listener.add_listener(
+        *network_cache.find_receive_property_by_table_name_and_property_name("DT_BaseTeamObjectiveResource",
+                                                                             "m_iPreviousPoints"),
+        [this](auto prop, auto output_variable, auto, auto object_id) {
+            decltype(PreviousObjectiveResource::previous_points)::value_type values;
+            auto current_values = std::span(*reinterpret_cast<int**>(output_variable), values.size());
+
+            std::copy(current_values.begin(), current_values.end(), values.begin());
+
+            get_or_create_previous_objective_resource().previous_points = std::move(values);
+        });
+
     accept();
 
     g_pCVar->InstallGlobalChangeCallback(on_convar_change);
@@ -917,6 +941,22 @@ std::span<float> Server::control_point_path_distance() const
             std::tuple_size_v<decltype(PreviousObjectiveResource::path_distance)::value_type>};
 }
 
+std::span<bool> Server::control_point_can_team_capture() const
+{
+    return {DataTableHelper::get_property_value_from_object<bool>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_bTeamCanCap")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::can_team_capture)::value_type>};
+}
+
+std::span<int> Server::control_point_previous_points() const
+{
+    return {DataTableHelper::get_property_value_from_object<int>(
+                m_objective_resource, *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                          "DT_BaseTeamObjectiveResource", "m_iPreviousPoints")),
+            std::tuple_size_v<decltype(PreviousObjectiveResource::previous_points)::value_type>};
+}
+
 std::unique_ptr<Protocol::Tick> Server::create_tick() const
 {
     auto tick = std::make_unique<Protocol::Tick>();
@@ -1108,10 +1148,21 @@ std::unique_ptr<Protocol::ControlPointsUpdate> Server::create_control_point_upda
         {
             auto number_of_capturers = control_point_number_of_capturers();
             auto capture_time = control_point_capture_time();
+            auto can_team_capture = control_point_can_team_capture();
+            auto previous_points_for_team = control_point_previous_points().subspan(
+                control_point_index_team_array(index, team) * 3, PreviousObjectiveResource::s_max_previous_points);
 
             (*control_point.mutable_number_of_capturers())[team] =
                 number_of_capturers[control_point_index_team_array(index, team)];
             (*control_point.mutable_capture_time())[team] = capture_time[control_point_index_team_array(index, team)];
+            (*control_point.mutable_can_team_capture())[team] =
+                can_team_capture[control_point_index_team_array(index, team)];
+
+            for (auto previous_point : previous_points_for_team)
+            {
+                if (previous_point != -1)
+                    (*control_point.mutable_previous_points())[team].add_values(previous_point);
+            }
         }
 
         auto capturing_team = control_point_capturing_team();
@@ -1430,6 +1481,45 @@ void Server::update(Badge<Plugin>)
                         (*previous_path_distance)[index] != current_path_distance[index])
                         (*get_or_create_pending_control_points_update().mutable_control_points())[index]
                             .set_path_distance(current_path_distance[index]);
+                }
+
+                if (auto previous_can_team_capture = m_previous_objective_resource->can_team_capture;
+                    previous_can_team_capture.has_value())
+                {
+                    auto current_can_team_capture = control_point_can_team_capture();
+
+                    if (auto array_index = control_point_index_team_array(index, team);
+                        (*previous_can_team_capture)[array_index] != current_can_team_capture[array_index])
+                        (*(*get_or_create_pending_control_points_update().mutable_control_points())[index]
+                              .mutable_can_team_capture())[team] = current_can_team_capture[array_index];
+                }
+
+                // very funny.
+                if (auto previous_previous_points = m_previous_objective_resource->previous_points;
+                    previous_previous_points.has_value())
+                {
+                    auto previous_previous_points_for_team =
+                        std::span(*previous_previous_points)
+                            .subspan(team * PreviousObjectiveResource::s_max_previous_points,
+                                     PreviousObjectiveResource::s_max_previous_points);
+
+                    auto current_previous_points = control_point_previous_points();
+                    auto current_previous_points_for_team =
+                        current_previous_points.subspan(team * PreviousObjectiveResource::s_max_previous_points,
+                                                        PreviousObjectiveResource::s_max_previous_points);
+
+                    if (!std::equal(previous_previous_points_for_team.begin(), previous_previous_points_for_team.end(),
+                                    current_previous_points_for_team.begin(), current_previous_points_for_team.end()))
+                    {
+                        auto& control_point =
+                            (*get_or_create_pending_control_points_update().mutable_control_points())[index];
+
+                        for (auto previous_point : current_previous_points_for_team)
+                        {
+                            if (previous_point != -1)
+                                (*control_point.mutable_previous_points())[team].add_values(previous_point);
+                        }
+                    }
                 }
             }
         }

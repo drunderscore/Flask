@@ -245,6 +245,10 @@ message Level {
 
 message ControlPointsUpdate {
   message ControlPoint {
+    message PreviousPoint {
+        repeated sint32 values = 1;
+    }
+
     map<uint32, uint32> number_of_capturers = 1;
     optional uint32 capturing_team = 2;
     map<uint32, float> capture_time = 3;
@@ -253,6 +257,8 @@ message ControlPointsUpdate {
     optional float capture_percentage = 6;
     optional bool locked = 7;
     optional float path_distance = 8;
+    map<uint32, bool> can_team_capture = 9;
+    map<uint32, PreviousPoint> previous_points = 10;
   }
 
   map<uint32, ControlPoint> control_points = 1;

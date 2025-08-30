@@ -82,6 +82,8 @@ public:
         // Instead of networking so many unnecessary teams, we'll only include the 3 we care about... and spectator.
         static constexpr size_t s_max_control_point_teams_to_network = 4;
 
+        static constexpr size_t s_max_previous_points = 3;
+
         std::optional<std::array<uint32_t, s_max_control_points * s_max_control_point_teams>> number_of_capturers;
         std::optional<std::array<uint32_t, s_max_control_points>> capturing_team;
         std::optional<std::array<float, s_max_control_points * s_max_control_point_teams>> capture_time;
@@ -90,6 +92,9 @@ public:
         std::optional<std::array<float, s_max_control_points>> capture_percentage;
         std::optional<std::array<bool, s_max_control_points>> locked;
         std::optional<std::array<float, s_max_control_points>> path_distance;
+        std::optional<std::array<float, s_max_control_points * s_max_control_point_teams>> can_team_capture;
+        std::optional<std::array<int, s_max_control_points * s_max_control_point_teams * s_max_previous_points>>
+            previous_points;
     };
 
 private:
@@ -233,6 +238,8 @@ private:
     std::span<float> control_point_capture_percentage() const;
     std::span<bool> control_point_locked() const;
     std::span<float> control_point_path_distance() const;
+    std::span<bool> control_point_can_team_capture() const;
+    std::span<int> control_point_previous_points() const;
 
     size_t control_point_index_team_array(int index, int team) const
     {
