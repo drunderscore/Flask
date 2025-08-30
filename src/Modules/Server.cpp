@@ -1150,7 +1150,8 @@ std::unique_ptr<Protocol::ControlPointsUpdate> Server::create_control_point_upda
             auto capture_time = control_point_capture_time();
             auto can_team_capture = control_point_can_team_capture();
             auto previous_points_for_team = control_point_previous_points().subspan(
-                control_point_index_team_array(index, team) * 3, PreviousObjectiveResource::s_max_previous_points);
+                control_point_index_team_array(index, team) * PreviousObjectiveResource::s_max_previous_points,
+                PreviousObjectiveResource::s_max_previous_points);
 
             (*control_point.mutable_number_of_capturers())[team] =
                 number_of_capturers[control_point_index_team_array(index, team)];
