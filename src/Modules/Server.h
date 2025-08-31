@@ -255,7 +255,7 @@ private:
     std::unique_ptr<Protocol::ControlPointsUpdate> create_control_point_update() const;
     std::unique_ptr<Protocol::TrainUpdate> create_train_update(void* train) const;
 
-    std::unique_ptr<Protocol::Player> create_player_from_user_id(uint8_t user_id) const;
+    std::unique_ptr<Protocol::Player> create_player_from_user_id(int user_id) const;
 
     void* m_game_rules{};
     void* m_player_resource{};

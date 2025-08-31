@@ -1222,7 +1222,7 @@ std::unique_ptr<Protocol::TrainUpdate> Server::create_train_update(void* train) 
     return train_update;
 }
 
-std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(uint8_t user_id) const
+std::unique_ptr<Protocol::Player> Server::create_player_from_user_id(int user_id) const
 {
     auto entity_index = m_plugin.interfaces().engine_client().GetPlayerForUserID(user_id);
     player_info_t player_info{};
