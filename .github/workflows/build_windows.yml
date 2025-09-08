@@ -30,7 +30,7 @@ jobs:
 
     - name: Install Boost
       id: install-boost
-      uses: MarkusJx/install-boost@v2.4.4
+      uses: MarkusJx/install-boost@6d8df42f57de83c5b326b5b83e7b35d650030103
       if: steps.restore-boost-from-cache.outputs.cache-hit != 'true'
       with:
           boost_version: ${{ steps.strings.outputs.boost-version }}
