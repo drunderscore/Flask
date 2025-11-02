@@ -744,7 +744,7 @@ std::optional<float> Server::get_charge_level_for_player(IClientNetworkable* pla
             continue;
 
         if (auto weapon = m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(handle);
-            weapon->GetClientClass()->GetName() == "CWeaponMedigun"sv)
+            weapon && weapon->GetClientClass()->GetName() == "CWeaponMedigun"sv)
         {
             // Although technically this is stored in two separate data tables at different precisions, it
             // ends up in the same place, so let's just pick one.
