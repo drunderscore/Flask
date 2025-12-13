@@ -4,7 +4,6 @@ project(Flask)
 
 set(HL2SDK_PATH ${PROJECT_SOURCE_DIR}/hl2sdk)
 set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
-set(BOOST_INCLUDE_DIRECTORY "C:/Program Files/boost_1_80_0" ON CACHE STRING "Path to the Boost includes")
 set(FLASK_DEVELOPMENT OFF CACHE STRING "Building Flask during development")
 
 set(CMAKE_CXX_STANDARD 20)
@@ -17,22 +16,43 @@ else()
     add_compile_options(-fno-gnu-unique)
 endif ()
 
+include(FetchContent)
+set(ABSL_ENABLE_INSTALL ON)
+
+FetchContent_Declare(absl
+  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  GIT_TAG        20250512.1
+)
+
+FetchContent_MakeAvailable(absl)
+
 set(protobuf_BUILD_TESTS OFF)
+FetchContent_Declare(protobuf
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG        v33.2
+)
+
+FetchContent_MakeAvailable(protobuf)
+include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
+
+FetchContent_Declare(boost
+    GIT_REPOSITORY https://github.com/boostorg/boost.git
+    GIT_TAG        boost-1.89.0
+)
+
+FetchContent_MakeAvailable(boost)
 
 # Use breakpad on all platforms
 # Linux uses breakpad by default, but Windows uses crashpad by default (in-process vs. out-of-process)
 set(SENTRY_BACKEND breakpad)
 
 add_subdirectory(sentry-native)
-add_subdirectory(protobuf)
 add_subdirectory(spdlog)
 add_subdirectory(JMP)
 
 set(SUBHOOK_TESTS OFF)
 set(SUBHOOK_STATIC ON)
 add_subdirectory(subhook)
-
-include(protobuf/cmake/protobuf-generate.cmake)
 
 set(PROTO_SOURCE_DIR src/Protocol)
 add_library(FlaskNetworkProtocol OBJECT ${PROTO_SOURCE_DIR}/flask.proto)
@@ -102,7 +122,6 @@ target_include_directories(Flask SYSTEM PRIVATE
 
         JMP/src
 
-        ${BOOST_INCLUDE_DIRECTORY}
         ${GENERATED_BINARY_DIR}
 )
 
@@ -137,4 +156,4 @@ elseif (WIN32)
     target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions steam_api64 mathlib)
 endif ()
 
-target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol sentry::sentry subhook::subhook)
+target_link_libraries(Flask PRIVATE tier0 spdlog::spdlog JMP FlaskNetworkProtocol sentry::sentry subhook::subhook Boost::beast)
