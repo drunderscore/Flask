@@ -2,7 +2,6 @@
 #include "../DataTableHelper.h"
 #include "../Flask.h"
 #include "../Structures/C_HLTVCamera.h"
-#include "../Structures/IVEngineClient.h"
 #include "Camera.h"
 #include "DataTableChangeListener.h"
 #include "EntityEnumerator.h"
@@ -803,7 +802,7 @@ std::array<CBaseHandle, Server::s_max_weapons> Server::get_weapon_handles_for_pl
 
     std::array<CBaseHandle, s_max_weapons> my_weapons_handles;
     std::transform(my_weapons.begin(), my_weapons.end(), my_weapons_handles.begin(),
-                   [](auto handle_integer) { return CBaseHandle(handle_integer); });
+                   [](auto handle_integer) { return CBaseHandle::UnsafeFromIndex(handle_integer); });
 
     return my_weapons_handles;
 }
@@ -1317,10 +1316,12 @@ void Server::update()
                     m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFGameRules",
                                                                                                    "m_hBlueKothTimer");
 
-                auto red_koth_timer_handle = CBaseHandle(*DataTableHelper::get_property_value_from_object<int>(
-                    m_game_rules, *red_koth_timer_handle_property));
-                auto blue_koth_timer_handle = CBaseHandle(*DataTableHelper::get_property_value_from_object<int>(
-                    m_game_rules, *blue_koth_timer_handle_property));
+                auto red_koth_timer_handle =
+                    CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
+                        m_game_rules, *red_koth_timer_handle_property));
+                auto blue_koth_timer_handle =
+                    CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
+                        m_game_rules, *blue_koth_timer_handle_property));
 
                 if (entity_id == red_koth_timer_handle.GetEntryIndex())
                     timer_update->set_team(2);
@@ -1567,14 +1568,14 @@ void Server::update()
             {
                 if (previous_weapons[i] != my_weapons[i])
                 {
-                    CBaseHandle previous_weapon_handle(previous_weapons[i]);
+                    auto previous_weapon_handle = CBaseHandle::UnsafeFromIndex(previous_weapons[i]);
 
                     // If we previously had this weapon, be sure to remove it, so the baseline sync mentioned below is
                     // understood (and doesn't act liek a delta).
                     if (previous_weapon_handle.IsValid())
                         get_or_create_pending_player_update(entity_id).add_weapons_removed(i);
 
-                    CBaseHandle weapon_handle(my_weapons[i]);
+                    auto weapon_handle = CBaseHandle::UnsafeFromIndex(my_weapons[i]);
                     if (!weapon_handle.IsValid())
                         continue;
 
@@ -1623,7 +1624,7 @@ void Server::update()
         {
             auto entity = m_plugin.interfaces().client_entity_list().GetClientEntity(entity_id);
 
-            CBaseHandle owner_handle(*DataTableHelper::get_property_value_from_object<int>(
+            auto owner_handle = CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
                 entity->GetDataTableBasePtr(),
                 *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseCombatWeapon",
                                                                                                 "m_hOwner")));
@@ -1706,10 +1707,10 @@ void Server::update()
             if (!s_engineer_buildings_to_sync.contains(entity->GetClientClass()->GetName()))
                 continue;
 
-            CBaseHandle owner_handle = *DataTableHelper::get_property_value_from_object<int>(
+            auto owner_handle = CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
                 entity->GetDataTableBasePtr(),
                 *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseObject",
-                                                                                                "m_hBuilder"));
+                                                                                                "m_hBuilder")));
 
             if (!owner_handle.IsValid())
                 continue;
@@ -1751,10 +1752,11 @@ void Server::update()
                 // FIXME: If our active weapon index becomes invalid, we simply don't transmit that change. This may
                 //        confuse clients who simply use the previous active weapon, which may not be a valid index
                 //        anymore? Hasn't seemed to be an issue yet.
-                if (CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
-                        player->GetDataTableBasePtr(),
-                        *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-                            "DT_BaseCombatCharacter", "m_hActiveWeapon")));
+                if (auto active_weapon_handle =
+                        CBaseHandle::UnsafeFromIndex((*DataTableHelper::get_property_value_from_object<int>(
+                            player->GetDataTableBasePtr(),
+                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                "DT_BaseCombatCharacter", "m_hActiveWeapon"))));
                     active_weapon_handle.IsValid())
                 {
                     auto my_weapons = get_weapon_handles_for_player(player);
@@ -1813,10 +1815,10 @@ void Server::on_delete_entity(IClientNetworkable* entity, const char*, bool)
     }
     else if (s_engineer_buildings_to_sync.contains(entity->GetClientClass()->GetName()))
     {
-        if (CBaseHandle owner_handle = *DataTableHelper::get_property_value_from_object<int>(
+        if (auto owner_handle = CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
                 entity->GetDataTableBasePtr(),
                 *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_BaseObject",
-                                                                                                "m_hBuilder"));
+                                                                                                "m_hBuilder")));
             owner_handle.IsValid())
         {
             get_or_create_pending_player_update(owner_handle.GetEntryIndex()).add_buildings_removed(entity_index);
@@ -1991,8 +1993,9 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                         network_cache.find_receive_property_by_table_name_and_property_name("DT_TFGameRules",
                                                                                             property_name);
 
-                    auto koth_timer_handle = CBaseHandle(*DataTableHelper::get_property_value_from_object<int>(
-                        m_game_rules, *koth_timer_handle_property));
+                    auto koth_timer_handle =
+                        CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
+                            m_game_rules, *koth_timer_handle_property));
 
                     if (auto koth_timer = m_plugin.interfaces().client_entity_list().GetClientNetworkableFromHandle(
                             koth_timer_handle))
@@ -2175,10 +2178,11 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                             std::move(*create_player_update_weapon(weapon).release());
                     }
 
-                    if (CBaseHandle active_weapon_handle(*DataTableHelper::get_property_value_from_object<int>(
-                            data_table_base,
-                            *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-                                "DT_BaseCombatCharacter", "m_hActiveWeapon")));
+                    if (auto active_weapon_handle =
+                            CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
+                                data_table_base,
+                                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                    "DT_BaseCombatCharacter", "m_hActiveWeapon")));
                         active_weapon_handle.IsValid())
                     {
                         auto active_weapon_it = std::find(my_weapons.begin(), my_weapons.end(), active_weapon_handle);
@@ -2236,10 +2240,11 @@ void Server::did_client_listen_to_event(Badge<Network::Client>, Network::Client&
                         if (!s_engineer_buildings_to_sync.contains(entity->GetClientClass()->GetName()))
                             return EntityEnumerator::IterationDecision::Continue;
 
-                        if (CBaseHandle owner_handle = *DataTableHelper::get_property_value_from_object<int>(
-                                entity->GetDataTableBasePtr(),
-                                *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
-                                    "DT_BaseObject", "m_hBuilder"));
+                        if (auto owner_handle =
+                                CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
+                                    entity->GetDataTableBasePtr(),
+                                    *m_plugin.network_cache().find_receive_property_by_table_name_and_property_name(
+                                        "DT_BaseObject", "m_hBuilder")));
                             !owner_handle.IsValid() || owner_handle.GetEntryIndex() != index)
                             return EntityEnumerator::IterationDecision::Continue;
 

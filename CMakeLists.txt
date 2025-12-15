@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.19)
 
 project(Flask)
 
-set(HL2SDK_PATH ${PROJECT_SOURCE_DIR}/hl2sdk)
 set(TF2_PATH "" ON CACHE STRING "Path to the TF2 directory")
 set(FLASK_DEVELOPMENT OFF CACHE STRING "Building Flask during development")
 
@@ -112,13 +111,13 @@ if (FLASK_DEVELOPMENT)
 endif ()
 
 target_include_directories(Flask SYSTEM PRIVATE
-        ${HL2SDK_PATH}/common
-        ${HL2SDK_PATH}/public
-        ${HL2SDK_PATH}/public/engine
-        ${HL2SDK_PATH}/public/mathlib
-        ${HL2SDK_PATH}/public/vstdlib
-        ${HL2SDK_PATH}/public/tier0
-        ${HL2SDK_PATH}/public/game/server
+        source-sdk-2013/src/common
+        source-sdk-2013/src/public
+        source-sdk-2013/src/public/engine
+        source-sdk-2013/src/public/mathlib
+        source-sdk-2013/src/public/vstdlib
+        source-sdk-2013/src/public/tier0
+        source-sdk-2013/src/public/game/server
 
         JMP/src
 
@@ -131,7 +130,7 @@ if (UNIX)
     #        some changes to utlvector.h. These changes do not compile on Linux without -fpermissive.
     #        On it's own it's not that problematic, but it means that ALL of my code will also be compiled with
     #        -fpermissive, which isn't desirable at all.
-    target_compile_options(Flask PRIVATE -fpermissive -iquote ${HL2SDK_PATH}/public/tier1)
+    target_compile_options(Flask PRIVATE -fpermissive -iquote ${CMAKE_CURRENT_SOURCE_DIR}/source-sdk-2013/src/public/tier1)
 
     target_compile_definitions(Flask PRIVATE
             stricmp=strcasecmp
@@ -140,19 +139,20 @@ if (UNIX)
             _vsnprintf=vsnprintf
             GNUC
             _LINUX
+            LINUX
             POSIX
             USE_SDL
     )
 
-    target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/linux64 ${TF2_PATH}/bin/linux64)
+    target_link_directories(Flask PRIVATE source-sdk-2013/src/lib/public/linux64 ${TF2_PATH}/bin/linux64)
     target_link_libraries(Flask PRIVATE -l:tier1.a steam_api -l:mathlib.a)
 
     set_target_properties(Flask PROPERTIES PREFIX "")
 elseif (WIN32)
     target_compile_definitions(Flask PRIVATE WIN32_LEAN_AND_MEAN)
-    target_include_directories(Flask PRIVATE ${HL2SDK_PATH}/public/tier1)
+    target_include_directories(Flask PRIVATE source-sdk-2013/src/public/tier1)
 
-    target_link_directories(Flask PRIVATE ${HL2SDK_PATH}/lib/public/win64 ${CMAKE_SOURCE_DIR}/Libraries/Windows/x64/)
+    target_link_directories(Flask PRIVATE source-sdk-2013/src/lib/public/win64 ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Windows/x64/)
     target_link_libraries(Flask PRIVATE tier1 legacy_stdio_definitions steam_api64 mathlib)
 endif ()
 

@@ -17,3 +17,6 @@
 [submodule "subhook"]
 	path = subhook
 	url = https://github.com/drunderscore/subhook
+[submodule "source-sdk-2013"]
+	path = source-sdk-2013
+	url = https://github.com/valvesoftware/source-sdk-2013

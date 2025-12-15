@@ -2,7 +2,6 @@
 #include "../DataTableHelper.h"
 #include "../Flask.h"
 #include "../Structures/C_HLTVCamera.h"
-#include "../Structures/IVEngineClient.h"
 #include "../TraceFilter.h"
 #include "Camera.h"
 #include "EntityEnumerator.h"
@@ -157,7 +156,7 @@ void Passtime::calc_view(Badge<Camera>, Vector& origin, QAngle& angles, float&)
     auto passtime_logic_ball_property =
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_TFPasstimeLogic", "m_hBall");
 
-    CBaseHandle passtime_ball_handle(*DataTableHelper::get_property_value_from_object<int>(
+    auto passtime_ball_handle = CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
         passtime_logic()->GetDataTableBasePtr(), *passtime_logic_ball_property));
 
     if (!passtime_ball_handle.IsValid())
@@ -171,8 +170,8 @@ void Passtime::calc_view(Badge<Camera>, Vector& origin, QAngle& angles, float&)
     auto passtime_ball_carrier_property =
         m_plugin.network_cache().find_receive_property_by_table_name_and_property_name("DT_PasstimeBall", "m_hCarrier");
 
-    CBaseHandle carrier(*DataTableHelper::get_property_value_from_object<int>(passtime_ball->GetDataTableBasePtr(),
-                                                                              *passtime_ball_carrier_property));
+    auto carrier = CBaseHandle::UnsafeFromIndex(*DataTableHelper::get_property_value_from_object<int>(
+        passtime_ball->GetDataTableBasePtr(), *passtime_ball_carrier_property));
 
     Vector target_origin;
 

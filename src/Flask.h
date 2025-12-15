@@ -48,6 +48,9 @@ public:
     {
     }
 
+    virtual void OnEdictAllocated(edict_t* edict) override {}
+    virtual void OnEdictFreed(const edict_t* edict) override {}
+
     static Plugin* s_the;
     static Plugin& the() { return *s_the; }
 

@@ -1,6 +1,5 @@
 #include "CameraRig.h"
 #include "../Flask.h"
-#include "../Structures/IVEngineClient.h"
 #include "Camera.h"
 #include "Interfaces.h"
 #include <algorithm>
