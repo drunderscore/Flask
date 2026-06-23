@@ -77,9 +77,10 @@ void Camera::calc_view(Structures::C_HLTVCamera* self, Vector& origin, QAngle& a
         camera.m_hltv_camera_calc_view(self, origin, angles, fov);
     }
 
+    if (static_cast<Camera::ObserveMode>(self->camera_mode) == Camera::ObserveMode::POI)
+        Plugin::the().passtime().calc_view({}, origin, angles, fov);
+
     if (Plugin::the().camera_rig().is_controlling())
         Plugin::the().camera_rig().calc_view({}, origin, angles, fov);
-    else if (static_cast<Camera::ObserveMode>(self->camera_mode) == Camera::ObserveMode::POI)
-        Plugin::the().passtime().calc_view({}, origin, angles, fov);
 }
 }
