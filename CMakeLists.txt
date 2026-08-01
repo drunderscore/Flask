@@ -103,6 +103,7 @@ target_compile_definitions(Flask PRIVATE
         FLASK_GIT_SHA1="${GIT_SHA1_SHORT}"
         # FIXME: Do we need this?
         PLATFORM_64BITS
+        COMPILER_MSVC
         COMPILER_MSVC64
 )
 
