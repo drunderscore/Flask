@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "Interfaces.h"
 #include <algorithm>
+#include <cdll_int.h>
 #include <cmath>
 #include <con_nprint.h>
 #include <toolframework/ienginetool.h>

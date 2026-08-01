@@ -14,10 +14,10 @@
 #include "Modules/NetworkCache.h"
 #include "Modules/Passtime.h"
 #include "Modules/Server.h"
-#include "Structures/IVEngineClient.h"
 #include "Tier0Logger.h"
 #include "tier1.h"
 #include <JMP/Platform.h>
+#include <cdll_int.h>
 #include <con_nprint.h>
 #include <spdlog/spdlog.h>
 

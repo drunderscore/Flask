@@ -8,6 +8,7 @@
 #include "Interfaces.h"
 #include "NetworkCache.h"
 #include <IEngineTrace.h>
+#include <cdll_int.h>
 #include <client_class.h>
 #include <icliententity.h>
 #include <icliententitylist.h>

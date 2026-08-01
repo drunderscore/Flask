@@ -1,6 +1,7 @@
 #include "ErrorReporting.h"
 #include "../Flask.h"
 #include "Interfaces.h"
+#include <cdll_int.h>
 #include <cstdio>
 #include <icommandline.h>
 #include <sentry.h>

@@ -1,7 +1,7 @@
 #include "TraceFilter.h"
 #include "Flask.h"
 #include "Modules/Interfaces.h"
-#include "Structures/IVEngineClient.h"
+#include <cdll_int.h>
 
 namespace Flask
 {
